@@ -263,6 +263,7 @@ final class CrmApp
                     'reports'  => ['/crm/reports.php', 'Отчёты'],
                     'users'    => ['/crm/users.php', 'Сотрудники'],
                     'settings' => ['/crm/settings.php', 'Настройки'],
+                    'health'   => ['/crm/health.php', 'Состояние'],
                 ];
             }
             foreach ($items as $k => [$href, $label]) {

@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 /**
- * Фоновые задачи. На хостинге запускать каждую минуту:
- *   /usr/bin/php /путь/private/cron/run.php
+ * Фоновые задачи. На хостинге Reg.ru запускать каждую минуту:
+ *   /opt/php/8.3/bin/php -f /var/www/u1234567/data/private/cron/run.php
  * Каждая часть работает независимо: ошибка одной не останавливает остальные.
+ * Ручной запуск одной задачи: php run.php backup -v
  */
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -21,7 +22,9 @@ $jobs = [
     'task_reminders' => static fn() => CrmDeals::remindTasks(),
     // тексты отправленных сообщений в очереди — не дольше недели
     'outbox_purge' => static fn() => Privacy::purgeOutbox(),
-    // раз в сутки: обезличивание по сроку хранения и ежедневный бэкап (этап 5)
+    // раз в сутки после 03:00 — бэкап базы в private/backups, старше 14 дней удаляются
+    'backup' => static fn() => Backup::daily(),
+    // раз в сутки: обезличивание по сроку хранения
     'daily' => static function () {
         if (Settings::get('daily_last_run') === date('Y-m-d')) {
             return 'skip';
@@ -32,6 +35,21 @@ $jobs = [
     'tg_updates' => static fn() => App::db()->run('DELETE FROM tg_updates WHERE received_at < ?', [Db::ts(App::now()->modify('-7 days'))])->rowCount(),
 ];
 
+if (!Installer::locked()) {
+    exit(0);   // установка ещё не выполнена — таблиц нет
+}
+$only = array_values(array_filter(array_slice($argv ?? [], 1), static fn($a) => $a[0] !== '-'));
+if ($only) {
+    $unknown = array_diff($only, array_keys($jobs));
+    if ($unknown) {
+        fwrite(STDERR, 'Нет задач: ' . implode(', ', $unknown) . '. Есть: ' . implode(', ', array_keys($jobs)) . PHP_EOL);
+        exit(2);
+    }
+    if (in_array('backup', $only, true)) {
+        $jobs['backup'] = static fn() => ['file' => basename(Backup::create()), 'pruned' => Backup::prune()];   // вручную — без ожидания 03:00
+    }
+    $jobs = array_intersect_key($jobs, array_flip($only));
+}
 $lock = fopen(APP_PRIVATE . '/data/cron.lock', 'c');
 if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit(0);   // предыдущий запуск ещё идёт

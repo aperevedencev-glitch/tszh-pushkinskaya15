@@ -25,13 +25,17 @@ return [
     // 'db' => ['driver' => 'sqlite', 'path' => __DIR__ . '/data/crm.sqlite'],
 
     // Случайная строка из 64 символов: подписывает ссылки «Продолжить в Telegram» и хеши в журналах.
-    // Сгенерировать: php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+    // Оставьте пустые кавычки — мастер установки (install.php) впишет случайное значение сам.
     'app_secret' => '',
+
+    // Ключ для мастера установки: любая фраза от 8 символов. Вводится на странице /install.php,
+    // чтобы установку не запустил посторонний. После установки можно стереть.
+    'install_key' => '',
 
     'telegram' => [
         'bot_username'   => 'tszh_pushkinskaya15_bot',
         'bot_token'      => '',   // от @BotFather
-        'webhook_secret' => '',   // случайная строка A-Z a-z 0-9 _ - (до 256 символов)
+        'webhook_secret' => '',   // пустые кавычки — мастер установки впишет случайное значение сам
         'api_base'       => 'https://api.telegram.org',
         'rate_limit'     => ['max' => 30, 'window_sec' => 60],  // сообщений от одного человека
     ],
@@ -78,4 +82,7 @@ return [
 
     // Лимит заявок с сайта с одного адреса.
     'lead_rate_limit' => ['max' => 10, 'window_sec' => 600],
+
+    // Ежедневный бэкап базы (cron, после 03:00) в private/backups. Старше keep_days — удаляются.
+    'backup' => ['keep_days' => 14],
 ];

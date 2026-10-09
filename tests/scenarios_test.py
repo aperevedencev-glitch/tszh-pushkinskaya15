@@ -105,8 +105,8 @@ def cron():
 def set_work_hours(start, end):
     cfg = f"{PRIV}/config.php"
     src = open(cfg).read()
-    src = re.sub(r"'start' => '\d\d:\d\d'", f"'start' => '{start}'", src)
-    src = re.sub(r"'end' => '\d\d:\d\d'", f"'end' => '{end}'", src)
+    src = re.sub(r"'start'(\s*)=> '\d\d:\d\d'", rf"'start'\1=> '{start}'", src)
+    src = re.sub(r"'end'(\s*)=> '\d\d:\d\d'", rf"'end'\1=> '{end}'", src)
     open(cfg, "w").write(src)
     # opcache в Apache перечитывает изменённые файлы не чаще раза в 2 с (opcache.revalidate_freq)
     time.sleep(3)

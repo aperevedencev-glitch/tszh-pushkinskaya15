@@ -16,5 +16,15 @@ if ($mode === 'down') {
     echo json_encode(['ok' => false, 'error_code' => 502, 'description' => 'Bad Gateway']);
     exit;
 }
-static $id = 0;
+// вебхук: setWebhook запоминает адрес, getWebhookInfo его возвращает (секрет не сохраняем)
+if ($m[2] === 'setWebhook' || $m[2] === 'deleteWebhook') {
+    file_put_contents("$dir/webhook.json", json_encode(['url' => $m[2] === 'setWebhook' ? (string)($params['url'] ?? '') : '', 'pending_update_count' => 0, 'max_connections' => (int)($params['max_connections'] ?? 40), 'allowed_updates' => $params['allowed_updates'] ?? []]));
+    echo json_encode(['ok' => true, 'result' => true]);
+    exit;
+}
+if ($m[2] === 'getWebhookInfo') {
+    $info = json_decode((string)@file_get_contents("$dir/webhook.json"), true) ?: ['url' => '', 'pending_update_count' => 0];
+    echo json_encode(['ok' => true, 'result' => $info]);
+    exit;
+}
 echo json_encode(['ok' => true, 'result' => ['message_id' => random_int(1000, 999999), 'chat' => ['id' => $params['chat_id'] ?? 0]]]);

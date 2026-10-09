@@ -8,10 +8,16 @@ AddType application/manifest+json .webmanifest
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # 1) Включите после установки SSL-сертификата (этап 5 инструкции):
-  # RewriteCond %{HTTPS} !=on
-  # RewriteCond %{HTTP:X-Forwarded-Proto} !https
-  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # Всё — только по HTTPS. Сначала установите SSL-сертификат в панели Reg.ru, потом загружайте сайт.
+  # Исключения: проверка сертификата Let's Encrypt и локальная проверка на своём компьютере.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Проверка сертификата должна открываться, несмотря на правило ниже о служебных файлах
+  RewriteRule ^\.well-known/acme-challenge/ - [L]
 
   # Служебные файлы не отдаём
   RewriteRule (^|/)\. - [F]
@@ -20,6 +26,7 @@ AddType application/manifest+json .webmanifest
   RewriteRule ^robots\.txt$ robots.php [L]
   RewriteRule ^sitemap\.xml$ sitemap.php [L]
   RewriteRule ^politika/?$ policy.php [L]
+  RewriteRule ^crm/health/?$ crm/health.php [L]
 </IfModule>
 
 <IfModule mod_headers.c>
@@ -28,8 +35,8 @@ AddType application/manifest+json .webmanifest
   Header always set X-Frame-Options "DENY"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
   Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
-  # 2) Включите вместе с переадресацией на HTTPS:
-  # Header always set Strict-Transport-Security "max-age=31536000"
+  # HSTS — только в ответах по HTTPS. Браузер год не будет открывать сайт по http://
+  Header always set Strict-Transport-Security "max-age=31536000" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
   <FilesMatch "\.(woff2|webp|jpg|png|ico)$">
     Header set Cache-Control "public, max-age=2592000, immutable"
   </FilesMatch>

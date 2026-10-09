@@ -165,3 +165,24 @@ form.inline{display:inline}
 
 dialog{border:1px solid var(--line);border-radius:14px;padding:20px;max-width:440px;width:calc(100% - 32px)}
 dialog::backdrop{background:rgba(23,21,18,.45)}
+
+/* Установка и состояние системы */
+.install{max-width:640px;margin:24px auto;display:grid;gap:14px;width:100%}
+.health{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.check{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;align-items:start}
+.check p{margin:2px 0 0;overflow-wrap:anywhere}
+.check .state{font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:5px;background:var(--muted)}
+.ok .dot{background:var(--ok)} .warn .dot{background:#C77A00} .fail .dot{background:var(--err)}
+.check.ok .state{background:var(--ok-soft);color:var(--ok)}
+.check.warn .state{background:var(--warn-soft);color:var(--warn)}
+.check.fail .state{background:var(--err-soft);color:var(--err)}
+.overall{display:inline-flex;align-items:center;gap:8px;margin:0;padding:6px 14px;border-radius:999px;font-weight:600}
+.overall .dot{margin:0}
+.overall.ok{background:var(--ok-soft);color:var(--ok)} .overall.warn{background:var(--warn-soft);color:var(--warn)} .overall.fail{background:var(--err-soft);color:var(--err)}
+.steps{margin:0;padding-left:20px;display:grid;gap:10px}
+code{font-family:var(--f-mono);font-size:13px;background:var(--soft);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+.err-text{color:var(--err);margin:0}
+.narrow-wide{max-width:260px}

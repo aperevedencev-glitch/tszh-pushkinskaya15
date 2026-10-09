@@ -6,7 +6,7 @@ $pub = realpath(__DIR__ . '/../public');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'");
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-$map = ['/robots.txt' => '/robots.php', '/sitemap.xml' => '/sitemap.php', '/politika' => '/policy.php', '/politika/' => '/policy.php', '/' => '/index.php'];
+$map = ['/robots.txt' => '/robots.php', '/sitemap.xml' => '/sitemap.php', '/politika' => '/policy.php', '/politika/' => '/policy.php', '/crm/health' => '/crm/health.php', '/' => '/index.php'];
 if (preg_match('~(^|/)\.|^/_boot\.php$~', $path) || (str_starts_with($path, '/bot/') && $path !== '/bot/webhook.php')) { http_response_code(403); exit; }
 if (isset($map[$path])) { $path = $map[$path]; }
 $file = $pub . $path;
