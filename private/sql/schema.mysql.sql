@@ -147,13 +147,15 @@ CREATE TABLE IF NOT EXISTS outbox (
   chat_id      BIGINT NOT NULL,
   payload      TEXT NOT NULL,                                  -- JSON для sendMessage
   message_id   INT UNSIGNED NULL,                              -- messages.id, чтобы обновить статус доставки
+  deal_id      INT UNSIGNED NULL,
   attempts     INT NOT NULL DEFAULT 0,
   next_try_at  DATETIME NOT NULL,
   sent_at      DATETIME NULL,
   failed_at    DATETIME NULL,
   last_error   VARCHAR(255) NULL,
   created_at   DATETIME NOT NULL,
-  KEY idx_outbox_pending (sent_at, failed_at, next_try_at)
+  KEY idx_outbox_pending (sent_at, failed_at, next_try_at),
+  KEY idx_outbox_deal (deal_id, kind)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS tg_updates (

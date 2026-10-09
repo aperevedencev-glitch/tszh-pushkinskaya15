@@ -32,6 +32,8 @@ return [
         'bot_username'   => 'tszh_pushkinskaya15_bot',
         'bot_token'      => '',   // от @BotFather
         'webhook_secret' => '',   // случайная строка A-Z a-z 0-9 _ - (до 256 символов)
+        'api_base'       => 'https://api.telegram.org',
+        'rate_limit'     => ['max' => 30, 'window_sec' => 60],  // сообщений от одного человека
     ],
 
     // Рабочие часы менеджеров. Праздники и перенесённые рабочие дни — в настройках CRM.

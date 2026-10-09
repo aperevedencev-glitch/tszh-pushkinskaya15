@@ -1,0 +1,4 @@
+# В папке бота доступен только вебхук
+<FilesMatch "^(?!webhook\.php$)">
+  Require all denied
+</FilesMatch>

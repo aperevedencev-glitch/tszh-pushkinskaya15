@@ -7,7 +7,7 @@ header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 $map = ['/robots.txt' => '/robots.php', '/sitemap.xml' => '/sitemap.php', '/politika' => '/policy.php', '/politika/' => '/policy.php', '/' => '/index.php'];
-if (preg_match('~(^|/)\.|^/_boot\.php$~', $path)) { http_response_code(403); exit; }
+if (preg_match('~(^|/)\.|^/_boot\.php$~', $path) || (str_starts_with($path, '/bot/') && $path !== '/bot/webhook.php')) { http_response_code(403); exit; }
 if (isset($map[$path])) { $path = $map[$path]; }
 $file = $pub . $path;
 if (is_file($file)) {

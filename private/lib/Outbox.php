@@ -9,13 +9,14 @@ declare(strict_types=1);
  */
 final class Outbox
 {
-    public static function enqueue(string $kind, int $chatId, array $payload, ?int $messageId = null): int
+    public static function enqueue(string $kind, int $chatId, array $payload, ?int $messageId = null, ?int $dealId = null): int
     {
         return App::db()->insert('outbox', [
             'kind'        => $kind,
             'chat_id'     => $chatId,
             'payload'     => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'message_id'  => $messageId,
+            'deal_id'     => $dealId,
             'attempts'    => 0,
             'next_try_at' => Db::ts(),
             'created_at'  => Db::ts(),
@@ -32,6 +33,13 @@ final class Outbox
         if (!$tg) {
             return; // уведомление увидят в CRM
         }
+        // о новых сообщениях в одной сделке напоминаем не чаще раза в 10 минут
+        if ($event === 'message' && App::db()->value(
+            "SELECT 1 FROM outbox WHERE deal_id = ? AND kind = 'notify_message' AND created_at >= ? LIMIT 1",
+            [$deal['id'], Db::ts(App::now()->modify('-10 minutes'))]
+        )) {
+            return;
+        }
         $title = $event === 'new' ? '🆕 Новая заявка' : '💬 Новое сообщение';
         $text = sprintf("%s %s\nКанал: %s%s", $title, $deal['number'], $channelLabel, $deal['is_off_hours'] ? "\n🌙 Пришла в нерабочее время" : '');
         $payload = ['text' => $text];
@@ -39,6 +47,6 @@ final class Outbox
         if (str_starts_with($url, 'https://')) {
             $payload['reply_markup'] = ['inline_keyboard' => [[['text' => 'Открыть в CRM', 'url' => $url]]]];
         }
-        self::enqueue('notify_' . $event, (int)$tg, $payload);
+        self::enqueue('notify_' . $event, (int)$tg, $payload, null, (int)$deal['id']);
     }
 }
