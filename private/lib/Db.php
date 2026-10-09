@@ -77,6 +77,9 @@ final class Db
 
     public function tx(callable $fn): mixed
     {
+        if ($this->pdo->inTransaction()) {
+            return $fn($this);   // вложенный вызов — работаем внутри внешней транзакции
+        }
         $this->pdo->beginTransaction();
         try {
             $r = $fn($this);

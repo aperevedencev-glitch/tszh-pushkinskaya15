@@ -17,6 +17,18 @@ $jobs = [
     // брошенные черновики диалога с личными данными — через 24 часа
     'bot_drafts' => static fn() => BotSession::purgeDrafts(),
     'rate_limits' => static fn() => RateLimit::cleanup(),
+    // напоминания о задачах сотрудникам в Telegram
+    'task_reminders' => static fn() => CrmDeals::remindTasks(),
+    // тексты отправленных сообщений в очереди — не дольше недели
+    'outbox_purge' => static fn() => Privacy::purgeOutbox(),
+    // раз в сутки: обезличивание по сроку хранения и ежедневный бэкап (этап 5)
+    'daily' => static function () {
+        if (Settings::get('daily_last_run') === date('Y-m-d')) {
+            return 'skip';
+        }
+        Settings::set('daily_last_run', date('Y-m-d'));
+        return ['retention' => Privacy::retention()];
+    },
     'tg_updates' => static fn() => App::db()->run('DELETE FROM tg_updates WHERE received_at < ?', [Db::ts(App::now()->modify('-7 days'))])->rowCount(),
 ];
 

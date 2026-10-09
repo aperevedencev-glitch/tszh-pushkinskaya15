@@ -67,6 +67,12 @@ final class Telegram
         try {
             return (array)self::api('sendMessage', $params);
         } catch (TelegramError $e) {
+            if ($e->httpCode === 400 && stripos($e->getMessage(), 'parse') !== false) {
+                // текст с ошибкой разметки (например, незакрытый тег в ответе из CRM) — отправляем без разметки
+                unset($params['parse_mode']);
+                $params['text'] = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                return (array)self::api('sendMessage', $params);
+            }
             if ($e->isPermanent() || $e->retryAfter > 3) {
                 throw $e;
             }
@@ -90,17 +96,19 @@ final class Telegram
     }
 
     /** Отправить сообщения из очереди. Возвращает [отправлено, отложено, отказ]. */
-    public static function flushOutbox(int $limit = 20): array
+    public static function flushOutbox(int $limit = 20, ?array $onlyIds = null): array
     {
         $db = App::db();
         $stats = [0, 0, 0];
         if (!self::configured() && !self::$transport) {
             return $stats;
         }
-        $rows = $db->all(
-            'SELECT * FROM outbox WHERE sent_at IS NULL AND failed_at IS NULL AND next_try_at <= ? ORDER BY id LIMIT ' . (int)$limit,
-            [Db::ts()]
-        );
+        $sql = 'SELECT * FROM outbox WHERE sent_at IS NULL AND failed_at IS NULL AND next_try_at <= ?';
+        $params = [Db::ts()];
+        if ($onlyIds) {
+            $sql .= ' AND id IN (' . implode(',', array_map('intval', $onlyIds)) . ')';
+        }
+        $rows = $db->all($sql . ' ORDER BY id LIMIT ' . (int)$limit, $params);
         foreach ($rows as $row) {
             // «бронируем» строку, чтобы вебхук и cron не отправили одно и то же дважды
             $claimed = $db->run('UPDATE outbox SET next_try_at = ? WHERE id = ? AND next_try_at = ? AND sent_at IS NULL',
