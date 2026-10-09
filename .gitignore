@@ -1,0 +1,13 @@
+# Секреты и данные — никогда в git
+private/config.php
+private/logs/*
+private/backups/*
+private/data/*
+!private/logs/.gitkeep
+!private/backups/.gitkeep
+!private/data/.gitkeep
+*.sqlite
+*.sqlite-*
+.env
+node_modules/
+.DS_Store

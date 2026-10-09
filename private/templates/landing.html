@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{company_name}} — заявки и вопросы жильцов онлайн</title>
+<meta name="description" content="Оставьте заявку или вопрос в {{company_name}} на сайте или в Telegram: номер заявки сразу, ответ менеджера в рабочее время ({{work_hours}}).">
+<link rel="canonical" href="{{site_url}}/">
+<meta name="theme-color" content="#FDF2EA">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="{{company_name}}">
+<meta property="og:title" content="{{company_name}} — заявки и вопросы жильцов онлайн">
+<meta property="og:description" content="Заявка на сайте или в Telegram — номер сразу, ответ менеджера в рабочее время.">
+<meta property="og:url" content="{{site_url}}/">
+<meta property="og:image" content="{{site_url}}/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/assets/fonts/golos-cyrillic-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/golos-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/fira-xc-cyrillic-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/site.css">
+<script src="/assets/js/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="{{company_name}}, на главную">
+      <span class="plate" aria-hidden="true"><span>ПУШКИНСКАЯ <b>15</b></span></span>
+      <small>Товарищество<br>собственников жилья</small>
+    </a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="#kak">Как это работает</a>
+      <a href="#uslugi">Услуги</a>
+      <a href="#voprosy">Вопросы</a>
+      <a href="#kontakty">Контакты</a>
+    </nav>
+    <div class="top-act">
+      <a class="btn btn-ghost" href="{{bot_url}}" data-tg rel="noopener">Telegram</a>
+      <a class="btn" href="#zayavka">Оставить заявку</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="h1">
+    <div class="wrap">
+      <div class="hero-text">
+        <span class="eyebrow">{{company_name}}</span>
+        <h1 id="h1">Вопрос по дому&nbsp;— <em>без звонков в пустоту</em></h1>
+        <p class="lead">Оставьте заявку на сайте или в Telegram. Она сразу получит номер, а менеджер ТСЖ ответит в рабочее время: {{work_hours}}.</p>
+        <div class="cta">
+          <a class="btn" href="#zayavka">Оставить заявку</a>
+          <a class="btn btn-tg" href="{{bot_url}}" data-tg rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.7A8 8 0 1 1 21 12z"/></svg>
+            Написать в Telegram
+          </a>
+        </div>
+        <ul class="chips" aria-label="Коротко">
+          <li>Номер заявки — сразу</li>
+          <li>Бот принимает заявки круглосуточно</li>
+          <li>Ответ в Telegram или по телефону</li>
+        </ul>
+      </div>
+      <figure class="hero-photo">
+        <picture>
+          <source type="image/webp" srcset="/assets/img/hero-480.webp 480w, /assets/img/hero-720.webp 720w, /assets/img/hero-960.webp 960w" sizes="(max-width: 900px) 92vw, 520px">
+          <img src="/assets/img/hero-960.jpg" width="960" height="960" alt="Иллюстрация: представитель ТСЖ у дома. Надпись «ТСЖ. Уютный дом — наша общая забота»: содержание и ремонт дома, коммунальные услуги, безопасность и порядок, общение с жильцами." fetchpriority="high">
+        </picture>
+      </figure>
+    </div>
+  </section>
+
+  <section class="wrap" aria-label="О доме">
+    <dl class="facts">
+      <div><dt>711</dt><dd>квартир</dd></div>
+      <div><dt>11</dt><dd>подъездов</dd></div>
+      <div><dt>24</dt><dd>лифта</dd></div>
+      <div><dt>14–20</dt><dd>этажей, монолит</dd></div>
+      <div><dt>2005</dt><dd>год постройки</dd></div>
+    </dl>
+  </section>
+
+  <section class="sec" aria-labelledby="h-pain">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Знакомо?</span>
+        <h2 id="h-pain">Что мешает решать вопросы по дому&nbsp;— и как теперь</h2>
+      </div>
+      <div class="grid g2">
+        <article class="card lift pain">
+          <p class="q">«Звоню — никто не берёт трубку»</p>
+          <h3>Заявку можно оставить в любое время</h3>
+          <p class="muted">Форма на сайте и бот в Telegram работают круглосуточно. Менеджер свяжется в рабочие часы.</p>
+        </article>
+        <article class="card lift pain">
+          <p class="q">«Сказал устно — и всё забылось»</p>
+          <h3>У каждой заявки есть номер</h3>
+          <p class="muted">Номер вида L-000123 вы видите сразу после отправки. По нему заявку найдут за секунду — и в переписке, и по телефону.</p>
+        </article>
+        <article class="card lift pain">
+          <p class="q">«Вопрос в чате дома утонул среди сообщений»</p>
+          <h3>Обращение попадает к ответственному</h3>
+          <p class="muted">Заявка не теряется в общем потоке: её сразу получает менеджер, который за неё отвечает.</p>
+        </article>
+        <article class="card lift pain">
+          <p class="q">«Написал, потом позвонил — объясняю всё заново»</p>
+          <h3>Вся переписка — в одной заявке</h3>
+          <p class="muted">Начали на сайте, продолжили в Telegram — менеджер видит всю историю и не переспрашивает.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-alt" id="kak" aria-labelledby="h-how">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Как это работает</span>
+        <h2 id="h-how">Четыре шага от вопроса до ответа</h2>
+      </div>
+      <ol class="steps">
+        <li><b>Оставьте заявку</b><span class="muted">Через форму ниже или в Telegram-боте @{{bot_username}}.</span></li>
+        <li><b>Получите номер</b><span class="muted">Номер L-… появится сразу. Сохраните его — по нему найдут вашу заявку.</span></li>
+        <li><b>Менеджер свяжется</b><span class="muted">В рабочее время: {{work_hours}}. Заявку ночью или в выходной возьмут в работу в первый рабочий день.</span></li>
+        <li><b>Продолжайте в Telegram</b><span class="muted">Ответы менеджера придут в бот, а ваши сообщения попадут в ту же заявку.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="sec" id="uslugi" aria-labelledby="h-svc">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Услуги и цены</span>
+        <h2 id="h-svc">С чем можно обратиться</h2>
+        <p class="lead">Перечень и цены утверждает правление ТСЖ.</p>
+      </div>
+      <div class="grid g3">
+        <article class="card lift svc"><h3>Вопросы по начислениям и квитанциям</h3><p class="price">{{{price_billing}}}</p></article>
+        <article class="card lift svc"><h3>Вызов мастера в квартиру</h3><p class="price">{{{price_master}}}</p></article>
+        <article class="card lift svc"><h3>Ключи и брелоки домофона</h3><p class="price">{{{price_keys}}}</p></article>
+        <article class="card lift svc"><h3>Справки и выписки</h3><p class="price">{{{price_docs}}}</p></article>
+        <article class="card lift svc"><h3>Вывоз строительного мусора</h3><p class="price">{{{price_waste}}}</p></article>
+        <article class="card lift svc"><h3>Сообщить о неисправности в доме</h3><p class="price">{{{price_issue}}}</p></article>
+      </div>
+      <p class="note">{{{services_note}}}</p>
+      <div class="card alarm" role="note">
+        <span class="eyebrow">Авария — звоните сразу</span>
+        <p>Затопление, нет воды или света, застрял лифт: не ждите ответа на заявку, звоните в аварийную службу — {{{phone_emergency}}}. Угроза жизни — <a href="tel:112">112</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-alt" id="voprosy" aria-labelledby="h-faq">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Вопросы и ответы</span>
+        <h2 id="h-faq">Коротко о главном</h2>
+      </div>
+      <div class="faq">
+        <details><summary>Как оставить заявку?</summary><p>Заполните форму ниже или напишите боту @{{bot_username}} в Telegram — он спросит имя, телефон и суть вопроса. Обоими способами заявка попадает к менеджеру ТСЖ.</p></details>
+        <details><summary>Что означает номер L-…?</summary><p>Это номер вашей заявки. Он появляется сразу после отправки и одинаков на сайте, в боте и у менеджера. Назовите его, если будете звонить или писать по этому вопросу.</p></details>
+        <details><summary>Когда со мной свяжутся?</summary><p>Менеджеры работают {{work_hours}}. Если заявка пришла ночью или в выходной, бот сразу подтвердит приём, а менеджер свяжется в первый рабочий день.</p></details>
+        <details><summary>Что делать при аварии?</summary><p>Звоните в аварийную службу: {{{phone_emergency}}}. Заявка на сайте подходит для обычных вопросов, при аварии счёт идёт на минуты.</p></details>
+        <details><summary>Обязательно ли пользоваться Telegram?</summary><p>Нет. Укажите в форме телефон — менеджер позвонит. Telegram удобен, чтобы переписываться и не терять историю.</p></details>
+        <details><summary>Зачем галочка согласия на обработку данных?</summary><p>Так требует закон о персональных данных (152-ФЗ). Без согласия мы не сохраняем заявку. Данные хранятся на сервере в России и используются только для ответа на ваше обращение — подробно в <a href="/politika/">политике обработки данных</a>.</p></details>
+        <details><summary>Как удалить мои данные?</summary><p>Нажмите в боте «Удалить мои данные» или отправьте команду /stop. Можно написать и на почту: {{{email}}}. Запрос рассмотрит руководитель, после этого данные обезличиваются.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="zayavka" aria-labelledby="h-form">
+    <div class="wrap form-wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Заявка</span>
+        <h2 id="h-form">Опишите вопрос&nbsp;— ответим в рабочее время</h2>
+        <p class="lead">Номер заявки появится сразу. Потом можно продолжить в Telegram: бот узнает вашу заявку и допишет сообщения в неё.</p>
+        <p class="muted small">Менеджеры: {{work_hours}}. Авария — {{{phone_emergency}}}.</p>
+      </div>
+
+      <div id="form-box">
+        <form class="form" id="lead-form" action="/api/lead.php" method="post" novalidate>
+          <div class="field">
+            <label for="f-name">Как к вам обращаться</label>
+            <input class="inp" id="f-name" name="name" type="text" autocomplete="name" maxlength="100" required aria-describedby="e-name">
+            <span class="err" id="e-name" aria-live="polite"></span>
+          </div>
+          <div class="pair">
+            <div class="field">
+              <label for="f-phone">Телефон</label>
+              <input class="inp" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="+7 900 000-00-00" aria-describedby="h-contact e-phone">
+              <span class="err" id="e-phone" aria-live="polite"></span>
+            </div>
+            <div class="field">
+              <label for="f-tg">или ник в Telegram</label>
+              <input class="inp" id="f-tg" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="@ivan_petrov" aria-describedby="h-contact e-telegram">
+              <span class="err" id="e-telegram" aria-live="polite"></span>
+            </div>
+          </div>
+          <span class="hint" id="h-contact">Достаточно одного: телефона или ника в Telegram.</span>
+          <div class="field">
+            <label for="f-comment">Что случилось или что нужно</label>
+            <textarea class="inp" id="f-comment" name="comment" maxlength="2000" placeholder="Например: не работает домофон во 2-м подъезде"></textarea>
+          </div>
+          <div class="hp" aria-hidden="true">
+            <label for="f-website">Не заполняйте это поле</label>
+            <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" name="elapsed" value="">
+          <input type="hidden" name="utm_source" value="">
+          <input type="hidden" name="utm_medium" value="">
+          <input type="hidden" name="utm_campaign" value="">
+          <input type="hidden" name="utm_content" value="">
+          <input type="hidden" name="utm_term" value="">
+          <input type="hidden" name="referrer" value="">
+          <input type="hidden" name="landing_page" value="">
+          <div class="field">
+            <label class="check" for="f-consent">
+              <input id="f-consent" name="consent" type="checkbox" value="yes" required aria-describedby="e-consent">
+              <span>Согласен(на) на обработку моих персональных данных (имя, телефон, ник в Telegram, текст обращения) для ответа на обращение — в соответствии с <a href="/politika/" target="_blank" rel="noopener">политикой обработки персональных данных</a>.</span>
+            </label>
+            <span class="err" id="e-consent" aria-live="polite"></span>
+          </div>
+          <button class="btn" type="submit" id="f-submit">Отправить заявку</button>
+          <p class="form-status" id="f-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="success" id="lead-ok" hidden tabindex="-1">
+          <h3>Заявка <span class="num" id="ok-number">L-000000</span> принята</h3>
+          <p id="ok-text">Сохраните номер. Менеджер свяжется с вами в рабочее время: {{work_hours}}.</p>
+          <div class="cta">
+            <a class="btn btn-tg" id="ok-tg" href="{{bot_url}}" rel="noopener">Продолжить в Telegram</a>
+          </div>
+          <p class="muted small">В Telegram бот узнает вашу заявку: всё, что вы напишете, попадёт к тому же менеджеру.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot" id="kontakty">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h2>{{company_name}}</h2>
+        <p class="k">{{{full_name}}}</p>
+        <p class="k">ИНН {{inn}} · ОГРН {{ogrn}} от {{ogrn_date}}</p>
+        <p class="k">Адрес: {{{address}}}</p>
+      </div>
+      <div>
+        <h2>Связь</h2>
+        <ul>
+          <li>Аварийная служба: {{{phone_emergency}}}</li>
+          <li>Правление: {{{phone_office}}}</li>
+          <li>Почта: {{{email}}}</li>
+          <li><a href="{{bot_url}}" data-tg rel="noopener">Telegram-бот @{{bot_username}}</a></li>
+          <li class="k">Менеджеры: {{work_hours}}</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Документы</h2>
+        <ul>
+          <li><a href="/politika/">Политика обработки персональных данных</a></li>
+          <li><a href="#zayavka">Оставить заявку</a></li>
+          <li><a href="#voprosy">Вопросы и ответы</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="foot-bottom">© {{year}} {{company_name}}. Данные заявок хранятся на сервере в России.</p>
+  </div>
+</footer>
+</body>
+</html>
