@@ -9,7 +9,7 @@ if (!preg_match('~^/bot([^/]+)/(\w+)$~', $path, $m)) {
     exit;
 }
 $params = json_decode(file_get_contents('php://input'), true) ?: $_POST;
-file_put_contents("$dir/calls.jsonl", json_encode(['method' => $m[2], 'params' => $params, 'mode' => $mode], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents("$dir/calls.jsonl", json_encode(['method' => $m[2], 'params' => $params, 'mode' => $mode, 't' => microtime(true)], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
 header('Content-Type: application/json');
 if ($mode === 'down') {
     http_response_code(502);

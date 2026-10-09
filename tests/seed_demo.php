@@ -6,6 +6,7 @@ declare(strict_types=1);
  * Создаёт: руководитель boss / менеджеры anna, oleg (пароль Test-Passw0rd!), заявки из сайта и бота.
  */
 $priv = $argv[1] ?? __DIR__ . '/../private';
+// --users-only — только сотрудники, без заявок
 require $priv . '/bootstrap.php';
 $db = App::db();
 Schema::create($db);
@@ -16,6 +17,10 @@ $now = Db::ts();
 $ids = [];
 foreach ([['boss', 'Руководитель Ирина', 'admin', 555000], ['anna', 'Анна (менеджер)', 'manager', 555001], ['oleg', 'Олег (менеджер)', 'manager', 555002]] as [$l, $n, $r, $tg]) {
     $ids[$l] = (int)($db->value('SELECT id FROM users WHERE login = ?', [$l]) ?: $db->insert('users', ['login' => $l, 'name' => $n, 'role' => $r, 'password_hash' => $pass, 'telegram_id' => $tg, 'created_at' => $now]));
+}
+if (in_array('--users-only', $argv, true)) {
+    echo "users: " . json_encode($ids) . "\n";
+    exit(0);
 }
 $leads = [
     ['site', 'Мария Петрова', '+79035550011', null, 'Течёт кран на кухне, нужен сантехник', ['channel' => 'site_form', 'utm_source' => 'qr', 'utm_medium' => 'print', 'utm_campaign' => 'lift_2']],
