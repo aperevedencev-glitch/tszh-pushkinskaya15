@@ -17,7 +17,7 @@ final class Privacy
             $now = Db::ts();
             $tg = $c['telegram_id'];
             $db->update('contacts', [
-                'name' => null, 'phone' => null, 'telegram_id' => null, 'telegram_username' => null, 'email' => null,
+                'name' => null, 'phone' => null, 'phone_verified' => 0, 'phone_claimed' => null, 'telegram_id' => null, 'telegram_username' => null, 'email' => null,
                 'anonymized_at' => $now, 'updated_at' => $now,
             ], 'id = ?', [$contactId]);
             $dealIds = array_map('intval', array_column($db->all('SELECT id FROM deals WHERE contact_id = ?', [$contactId]), 'id'));

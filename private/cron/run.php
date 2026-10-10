@@ -38,6 +38,7 @@ $jobs = [
 if (!Installer::locked()) {
     exit(0);   // установка ещё не выполнена — таблиц нет
 }
+Schema::ensureCurrent();   // после обновления файлов — новые столбцы
 $only = array_values(array_filter(array_slice($argv ?? [], 1), static fn($a) => $a[0] !== '-'));
 if ($only) {
     $unknown = array_diff($only, array_keys($jobs));

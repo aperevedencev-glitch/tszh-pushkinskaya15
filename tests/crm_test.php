@@ -60,7 +60,8 @@ $anna = $db->insert('users', ['login' => 'anna', 'name' => 'Анна', 'role' =>
 
 // Сценарий 3 + 6: бот через неделю → сайт с тем же телефоном, оплата → выручка в источнике первого касания
 at('2026-10-01 10:00');
-$b = Leads::capture(['channel' => 'bot', 'name' => 'Вера', 'telegram_id' => 7001, 'phone' => '+79001112233', 'text' => 'Ключ от домофона',
+// номер отправлен в боте кнопкой «Поделиться номером» — Telegram его подтвердил (набранный руками не склеивает, см. core_test)
+$b = Leads::capture(['channel' => 'bot', 'name' => 'Вера', 'telegram_id' => 7001, 'phone' => '+79001112233', 'phone_verified' => true, 'text' => 'Ключ от домофона',
     'consent' => ['telegram_id' => 7001], 'source' => ['channel' => 'bot', 'bot_start_tag' => 'qr_lift_2']]);
 CrmDeals::move(Deals::find($b['deal_id']), 'lost', 'Купили сами', $anna);
 at('2026-10-08 11:00');

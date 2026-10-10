@@ -185,13 +185,27 @@ def test_secrets():
     hist = subprocess.run(["git", "-C", REPO, "log", "--all", "-p", "--no-color"], capture_output=True, text=True, errors="replace").stdout
     patterns = {
         "токен Telegram-бота": r"\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b",
-        "пароль локальной тестовой БД": r"tszh_local_test",
         "закрытый ключ": r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
         "ключ GitHub": r"\bgh[pousr]_[A-Za-z0-9]{36}\b",
     }
     commits = subprocess.run(["git", "-C", REPO, "rev-list", "--all", "--count"], capture_output=True, text=True).stdout.strip()
-    found = {k: len(re.findall(v, hist)) for k, v in patterns.items()}
-    found = {k: v for k, v in found.items() if v}
+    if os.environ.get("TEST_DB_PASS"):
+        patterns["пароль тестовой БД"] = re.escape(os.environ["TEST_DB_PASS"])
+    # совпадения в tests/ — заведомые заглушки (например, строка в форме токена для проверки, что журнал её вырезает);
+    # секретом считается только совпадение вне tests/
+    found, fixtures, current = {}, [], None
+    for line in hist.splitlines():
+        if line.startswith("+++ "):
+            current = line[4:].strip().removeprefix("b/")
+            continue
+        for k, v in patterns.items():
+            if re.search(v, line):
+                if current and current.startswith("tests/"):
+                    fixtures.append(f"{current}: {k}")
+                else:
+                    found[k] = found.get(k, 0) + 1
+    if fixtures:
+        print(f"  (заглушки в тестах, не секреты: {sorted(set(fixtures))})")
     check(not found, f"во всей истории git ({commits} коммитов, все ветки) нет токенов, паролей и ключей {found}", "secrets")
     leaks = re.findall(r"^\+.*'(?:bot_token|webhook_secret|app_secret|pass|install_key)'\s*=>\s*'([^']+)'", hist, re.M)
     leaks = [v for v in leaks if v not in ("123:TEST", "TEST", "local") and not v.startswith(("ВАШ", "test", "local_install", "$"))]

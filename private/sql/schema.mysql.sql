@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS contacts (
   id                INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name              VARCHAR(100) NULL,
   phone             VARCHAR(16)  NULL UNIQUE,                  -- +7XXXXXXXXXX
+  phone_verified    TINYINT(1) NOT NULL DEFAULT 0,             -- 1 — номер подтверждён Telegram (кнопка «Поделиться номером»)
+  phone_claimed     VARCHAR(16)  NULL,                         -- номер, набранный в боте руками: только для поиска дублей
   telegram_id       BIGINT NULL UNIQUE,
   telegram_username VARCHAR(64)  NULL,
   email             VARCHAR(190) NULL,
@@ -27,6 +29,7 @@ CREATE TABLE IF NOT EXISTS contacts (
   last_activity_at  DATETIME NOT NULL,
   anonymized_at     DATETIME NULL,
   KEY idx_contacts_tgu (telegram_username),
+  KEY idx_contacts_claimed (phone_claimed),
   KEY idx_contacts_activity (last_activity_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

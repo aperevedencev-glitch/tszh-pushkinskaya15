@@ -28,6 +28,7 @@ final class BotWebhook
             return;
         }
 
+        Schema::ensureCurrent();
         $raw ??= file_get_contents('php://input', false, null, 0, 1048576);
         $update = json_decode((string)$raw, true);
         if (!is_array($update) || !isset($update['update_id'])) {

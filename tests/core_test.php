@@ -161,6 +161,44 @@ Leads::capture(['channel' => 'site', 'name' => 'Злоумышленник', 'ph
 $realVictim = Leads::capture(['channel' => 'bot', 'telegram_id' => 777001, 'telegram_username' => 'victim_nick', 'text' => 'мой вопрос', 'consent' => ['telegram_id' => 777001]]);
 ok($realVictim['contact_created'] === true, 'ник, набранный на сайте чужим человеком, не склеивает его контакт с настоящим владельцем ника');
 
+// --- «Застолбить» номер жильца заранее нельзя ---
+// через бот: злоумышленник первым набирает номер жильца руками
+$pre = Leads::capture(['channel' => 'bot', 'telegram_id' => 666101, 'phone' => '+79161230101', 'text' => 'занимаю номер', 'consent' => ['telegram_id' => 666101]]);
+ok(Contacts::find($pre['contact_id'])['phone'] === null, 'набранный в боте номер не записывается в контакт (только в текст заявки)');
+ok((bool)$db->value("SELECT 1 FROM messages WHERE deal_id = ? AND text LIKE '%+79161230101%'", [$pre['deal_id']]), 'менеджер видит этот номер в заявке');
+$vic = Leads::capture(['channel' => 'site', 'name' => 'Жилец', 'phone' => '+79161230101', 'text' => 'мой вопрос', 'consent' => ['ip' => '10.0.0.11']]);
+ok($vic['contact_id'] !== $pre['contact_id'] && $vic['contact_created'], 'заявка жильца с сайта — в его собственный контакт, не к тому, кто набрал номер раньше');
+// через сайт + ссылку: злоумышленник оставляет заявку с номером жильца и привязывает свой Telegram
+$pre2 = Leads::capture(['channel' => 'site', 'name' => 'Злоумышленник', 'phone' => '+79161230202', 'text' => 'x', 'consent' => ['ip' => '6.6.6.6']]);
+$db->update('contacts', ['telegram_id' => 666102], 'id = ?', [$pre2['contact_id']]);   // так делает переход по ссылке «Продолжить в Telegram»
+$vic2 = Leads::capture(['channel' => 'site', 'name' => 'Жилец', 'phone' => '8 916 123-02-02', 'text' => 'Долг по кв. 42?', 'consent' => ['ip' => '10.0.0.12']]);
+ok($vic2['contact_id'] !== $pre2['contact_id'] && $vic2['possible_duplicate'] === $pre2['contact_id'], 'номер совпал с контактом, у которого Telegram без подтверждённого номера, — отдельный контакт и пометка «дубль»');
+ok((int)$db->value('SELECT COUNT(*) FROM deals WHERE contact_id = ?', [$pre2['contact_id']]) === 1, 'заявка жильца не попала к контакту злоумышленника — ответы туда не уйдут');
+// подтверждённый номер: сайт присоединяется к контакту, а ник с сайта не перезаписывает сохранённый
+$ok3 = Leads::capture(['channel' => 'bot', 'telegram_id' => 777201, 'telegram_username' => 'real_owner', 'phone' => '+79161230303', 'phone_verified' => true, 'text' => 'x', 'consent' => ['telegram_id' => 777201]]);
+$s3 = Leads::capture(['channel' => 'site', 'name' => 'Кто-то', 'phone' => '+79161230303', 'telegram_username' => '@attacker_nick', 'text' => 'y', 'consent' => ['ip' => '6.6.6.6']]);
+ok($s3['contact_id'] === $ok3['contact_id'] && Contacts::find($ok3['contact_id'])['phone_verified'] == 1, 'номер подтверждён Telegram — заявка с сайта в тот же контакт (сценарий 3)');
+ok(Contacts::find($ok3['contact_id'])['telegram_username'] === 'real_owner', 'ник, набранный на сайте, не перезаписывает ник из Telegram');
+
+// --- объединение не отменяет отзыв согласия ---
+$x = Leads::capture(['channel' => 'site', 'name' => 'Икс', 'phone' => '+79161230404', 'text' => 'x', 'consent' => ['ip' => '1.1.1.1']]);
+Contacts::addConsent($x['contact_id'], 'site', null, null, 'revoked');
+$y = Leads::capture(['channel' => 'site', 'name' => 'Игрек', 'phone' => '+79161230505', 'text' => 'y', 'consent' => ['ip' => '1.1.1.2']]);
+Contacts::merge($x['contact_id'], $y['contact_id']);
+ok(!Contacts::hasConsent($y['contact_id']), 'после объединения отозванное согласие остаётся отозванным');
+
+// --- обновление уже установленной базы: недостающие столбцы добавляются сами ---
+$old = Db::fromPdo(new PDO('sqlite::memory:'));
+foreach (Schema::statements('sqlite') as $st) {
+    $old->pdo->exec($st);
+}
+$old->pdo->exec('ALTER TABLE users DROP COLUMN session_epoch');
+$old->pdo->exec('ALTER TABLE contacts DROP COLUMN phone_verified');
+$added = Schema::migrate($old);
+ok($added === 2 && Schema::migrate($old) === 0, 'миграция добавила 2 столбца в старую базу, повторный запуск ничего не меняет');
+$old->pdo->query('SELECT session_epoch FROM users LIMIT 0');
+ok(true, 'после миграции вход в CRM работает со старой базой (столбец session_epoch есть)');
+
 // --- Журнал без персональных данных ---
 $audit = json_encode($db->all('SELECT details FROM audit_log'), JSON_UNESCAPED_UNICODE);
 ok(!preg_match('/\+79|Ирина|Олег/u', $audit), 'в audit_log нет телефонов и имён');

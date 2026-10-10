@@ -110,6 +110,11 @@ unlink($cfg['install_lock']);
 ok(Installer::locked(), 'даже без файла-замка мастер закрыт, если в базе есть сотрудники');
 ok((int)$db->value("SELECT COUNT(*) FROM audit_log WHERE action = 'install'") === 1, 'установка записана в audit_log');
 
+// обновление: база от прошлой версии без новых столбцов
+$db->pdo->exec('ALTER TABLE contacts DROP COLUMN phone_verified');
+$db->run('DELETE FROM settings WHERE skey = ?', ['schema_version']);
+ok(Schema::migrate($db) === 1 && Schema::migrate($db) === 0, 'обновление на ' . $db->driver . ': недостающий столбец добавлен, повторно ничего не меняется');
+
 // ---------------------------------------------------------------- секреты в config.php
 echo "\nСекреты в config.php\n";
 $cfgFile = $tmp . '/config.php';
@@ -155,6 +160,12 @@ if (!$mysql) {
     Backup::restore($file, $fresh);
     ok(snapshot($fresh) === $snap, 'бэкап разворачивается в пустую базу');
 }
+// два бэкапа в одну секунду не затирают друг друга (страховочный перед восстановлением)
+$f1 = Backup::create();
+$f2 = Backup::create();
+ok($f1 !== $f2 && is_file($f1) && is_file($f2), 'два бэкапа в одну секунду — два разных файла');
+unlink($f1);
+unlink($f2);
 // обрезанный файл
 $cut = $tmp . '/backups/db-2026-10-09_120001.' . $db->driver . '.sql.gz';
 $gz = gzopen($cut, 'wb');

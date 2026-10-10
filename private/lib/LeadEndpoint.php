@@ -13,6 +13,7 @@ final class LeadEndpoint
     {
         header('Cache-Control: no-store');
         header('X-Robots-Tag: noindex');
+        Schema::ensureCurrent();
         $json = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {

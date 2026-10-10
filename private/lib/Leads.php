@@ -97,6 +97,11 @@ final class Leads
                         $wh->nextStart($now));
                 }
             }
+            if ($who['phone_note'] !== null) {
+                // номер не записан в контакт (не подтверждён Telegram или занят другим контактом) — менеджер видит его в заявке
+                Deals::addMessage($dealId, 'note', $channel, 'system', 'Телефон из заявки: ' . $who['phone_note']
+                    . ($channel === 'bot' ? ' (набран вручную, Telegram его не подтвердил).' : '.'));
+            }
             if ($who['conflict']) {
                 self::flagPossibleDuplicate($dealId, $deal['number'], $who['conflict'], (string)$in['phone']);
             }
@@ -124,14 +129,14 @@ final class Leads
     }
 
     /**
-     * Человек в Telegram указал телефон, который уже есть у другого контакта, но не подтвердил его кнопкой.
+     * Телефон из заявки уже есть у другого контакта, но склеивать по нему небезопасно (см. Contacts::resolveDetailed).
      * Контакты не склеиваем: пусть руководитель проверит (например, звонком) и объединит в карточке контакта.
      */
     private static function flagPossibleDuplicate(int $dealId, string $number, int $otherContactId, string $phone): void
     {
-        Deals::addMessage($dealId, 'note', 'bot', 'system',
-            'Жилец указал телефон ' . Phone::mask($phone) . ', который уже есть у контакта №' . $otherContactId
-            . '. Номер не подтверждён через Telegram, поэтому контакты не объединены. Проверьте и при необходимости объедините в карточке контакта.');
+        Deals::addMessage($dealId, 'note', 'crm', 'system',
+            'Телефон ' . Phone::mask($phone) . ' уже есть у контакта №' . $otherContactId
+            . '. Контакты не объединены автоматически: номер не подтверждён через Telegram того же человека. Проверьте (например, звонком) и при необходимости объедините в карточке контакта.');
         $admin = App::db()->value("SELECT id FROM users WHERE role = 'admin' AND active = 1 ORDER BY id LIMIT 1");
         $open = App::db()->value("SELECT 1 FROM tasks WHERE deal_id = ? AND kind = 'duplicate' AND done_at IS NULL", [$dealId]);
         if (!$open) {

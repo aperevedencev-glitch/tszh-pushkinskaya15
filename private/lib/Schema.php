@@ -44,10 +44,61 @@ final class Schema
         return $out;
     }
 
+    /** Версия схемы: увеличивается при каждом добавлении столбца в MIGRATIONS. */
+    public const VERSION = 3;
+
+    /** Столбцы, добавленные после первой версии: [таблица, столбец, определение]. Для уже установленных баз. */
+    private const MIGRATIONS = [
+        ['users', 'session_epoch', 'INT NOT NULL DEFAULT 0'],
+        ['contacts', 'phone_verified', 'TINYINT(1) NOT NULL DEFAULT 0'],
+        ['contacts', 'phone_claimed', 'VARCHAR(16) NULL'],
+    ];
+
     public static function create(Db $db): void
     {
         foreach (self::statements($db->driver) as $st) {
             $db->pdo->exec($st);
+        }
+        self::migrate($db);
+    }
+
+    /** Добавить недостающие столбцы. Повторный запуск ничего не меняет. */
+    public static function migrate(Db $db): int
+    {
+        $n = 0;
+        foreach (self::MIGRATIONS as [$table, $column, $def]) {
+            try {
+                $db->pdo->query("SELECT $column FROM $table LIMIT 0");
+                continue;   // столбец уже есть
+            } catch (PDOException) {
+            }
+            $db->pdo->exec("ALTER TABLE $table ADD COLUMN $column $def");
+            $n++;
+        }
+        $db->run('DELETE FROM settings WHERE skey = ?', ['schema_version']);
+        $db->run('INSERT INTO settings (skey, value) VALUES (?, ?)', ['schema_version', (string)self::VERSION]);
+        return $n;
+    }
+
+    /**
+     * После обновления файлов на хостинге: при первом же запросе дописать новые столбцы.
+     * Стоит один лёгкий запрос; до установки (таблиц нет) ничего не делает.
+     */
+    public static function ensureCurrent(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        try {
+            $db = App::db();
+            if ((int)$db->value('SELECT value FROM settings WHERE skey = ?', ['schema_version']) < self::VERSION) {
+                self::migrate($db);
+                Log::event('schema_migrated', ['version' => self::VERSION]);
+            }
+        } catch (Throwable) {
+            // таблиц ещё нет или база недоступна — этим занимаются мастер установки и /crm/health
         }
     }
 }

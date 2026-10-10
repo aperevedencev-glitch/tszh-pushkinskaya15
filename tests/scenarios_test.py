@@ -204,8 +204,11 @@ with sync_playwright() as pw:
     print("\nСценарий 3. Сначала бот, потом сайт с тем же телефоном → один контакт; открытая заявка дополняется, закрытая — новая")
     U3 = 81002
     msg(U3, "/start qr_lift_5", first="Вера")
-    for t in ["📝 Оставить заявку", "Вера Николаевна", "+7 916 400-10-03", "Нужен ключ от домофона"]:
+    for t in ["📝 Оставить заявку", "Вера Николаевна"]:
         msg(U3, t, first="Вера")
+    # номер — кнопкой «Поделиться номером»: Telegram подтверждает, что он принадлежит этому человеку
+    msg(U3, None, first="Вера", contact={"phone_number": "79164001003", "user_id": U3, "first_name": "Вера"})
+    msg(U3, "Нужен ключ от домофона", first="Вера")
     press(U3, "consent:lead")
     n3 = re.search(r"L-\d{6}", sent(U3)[-1]["params"]["text"]).group(0)
     check(3, bool(n3), f"заявка из бота {n3}, метка qr_lift_5")
@@ -225,6 +228,33 @@ with sync_playwright() as pw:
     contacts = one("SELECT COUNT(*) FROM contacts WHERE phone = '+79164001003'")
     same = one("SELECT COUNT(DISTINCT contact_id) FROM deals WHERE number IN (?, ?)", n3, n3b)
     check(3, n3b != n3 and contacts == 1 and same == 1, f"после закрытия — новая заявка {n3b}, контакт один")
+    ctx.close()
+
+    # номер набран в боте руками: склеивать небезопасно (так можно получить чужие ответы) — дубль руководителю, он объединяет
+    U3t = 81012
+    msg(U3t, "/start", first="Глеб")
+    for t in ["📝 Оставить заявку", "Глеб", "+7 916 400-10-13", "Не работает лифт во 2 подъезде"]:
+        msg(U3t, t, first="Глеб")
+    press(U3t, "consent:lead")
+    n3t = re.search(r"L-\d{6}", sent(U3t)[-1]["params"]["text"]).group(0)
+    ctx, page, d3t, _ = site_lead(br, f"{BASE}/", "Глеб", "+79164001013", "Лифт так и не работает")
+    ctx.close()
+    c_bot = one("SELECT contact_id FROM deals WHERE number = ?", n3t)
+    c_site = one("SELECT contact_id FROM deals WHERE number = ?", d3t["number"])
+    check(3, c_bot != c_site and one("SELECT telegram_id FROM contacts WHERE id = ?", c_site) is None,
+          "номер набран в боте руками — сайт не присоединяет заявку к этому Telegram")
+    ctx, crm = crm_login(br, "boss")
+    crm.goto(f"{BASE}/crm/tasks.php")
+    check(3, crm.locator("tr", has_text="Дубль контакта").count() >= 1, "у руководителя задача «Дубль контакта» со ссылкой на карточку")
+    crm.goto(f"{BASE}/crm/contact.php?id={c_bot}")
+    crm.fill("#m-into", str(c_site))
+    crm.fill("#m-confirm", "ОБЪЕДИНИТЬ")
+    crm.click("form:has(#m-into) button[type=submit]")
+    crm.wait_for_load_state()
+    merged = one("SELECT COUNT(DISTINCT contact_id) FROM deals WHERE number IN (?, ?)", n3t, d3t["number"])
+    check(3, merged == 1 and one("SELECT telegram_id FROM contacts WHERE id = ?", c_site) == U3t
+          and one("SELECT COUNT(*) FROM tasks WHERE kind = 'duplicate' AND done_at IS NULL") == 0,
+          "руководитель проверил и объединил в карточке контакта — один контакт с Telegram и телефоном, задача закрыта")
     ctx.close()
 
     # ------------------------------------------------------------------ 4

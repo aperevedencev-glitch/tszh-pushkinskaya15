@@ -54,7 +54,7 @@ $html = '<p class="crumbs"><a href="/crm/deals.php">Заявки</a> / Конт�
 <div class="deal-grid"><div class="main-col">
 <section class="card"><h2>Согласия на обработку данных</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Дата</th><th>Действие</th><th>Канал</th><th>Редакция политики</th><th>Подтверждение</th></tr></thead><tbody>';
 foreach ($consents as $k) {
-    $html .= '<tr><td>' . CrmApp::dt($k['created_at']) . '</td><td>' . ($k['action'] === 'given' ? '✓ дано' : '✗ отозвано') . '</td><td>' . ($k['channel'] === 'bot' ? 'Telegram-бот' : 'сайт') . '</td><td>' . $e($k['policy_version']) . '</td><td>'
+    $html .= '<tr><td>' . CrmApp::dt($k['created_at']) . '</td><td>' . ($k['action'] === 'given' ? '✓ дано' : '✗ отозвано') . '</td><td>' . (['bot' => 'Telegram-бот', 'site' => 'сайт', 'crm' => 'CRM (объединение)'][$k['channel']] ?? $k['channel']) . '</td><td>' . $e($k['policy_version']) . '</td><td>'
         . $e($k['ip'] ? 'IP ' . $k['ip'] : ($k['telegram_id'] ? 'Telegram ID ' . $k['telegram_id'] : ($c['anonymized_at'] ? 'обезличено' : '—'))) . '</td></tr>';
 }
 if (!$consents) {

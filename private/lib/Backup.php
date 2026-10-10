@@ -36,7 +36,12 @@ final class Backup
         if (!is_dir($dir) && !@mkdir($dir, 0700, true)) {
             throw new RuntimeException('Не удалось создать папку бэкапов');
         }
-        $name = self::PREFIX . App::now()->format('Y-m-d_His') . '.' . $db->driver . '.sql.gz';
+        // имя уникально даже в пределах одной секунды (например, страховочный бэкап перед восстановлением)
+        $base = self::PREFIX . App::now()->format('Y-m-d_His');
+        $name = $base . '.' . $db->driver . '.sql.gz';
+        for ($i = 2; is_file($dir . '/' . $name); $i++) {
+            $name = $base . '-' . $i . '.' . $db->driver . '.sql.gz';
+        }
         $tmp = $dir . '/.' . $name . '.part';
         $gz = gzopen($tmp, 'wb6');
         if (!$gz) {

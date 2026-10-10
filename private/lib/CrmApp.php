@@ -14,6 +14,7 @@ final class CrmApp
     public static function run(string $page, bool $public = false): void
     {
         self::startSession();
+        Schema::ensureCurrent();
         header('X-Robots-Tag: noindex, nofollow');
         header('Cache-Control: no-store');
         header('X-Frame-Options: DENY');
