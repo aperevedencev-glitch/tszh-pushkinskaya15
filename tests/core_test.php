@@ -132,10 +132,34 @@ at('2026-10-10 10:00');
 $b = Leads::capture(['channel' => 'bot', 'name' => 'Олег', 'telegram_id' => 555001, 'text' => 'Из бота', 'consent' => ['telegram_id' => 555001], 'source' => ['channel' => 'bot', 'bot_start_tag' => 'qr_lift']]);
 $s = Leads::capture(['channel' => 'site', 'name' => 'Олег', 'phone' => '+79995550001', 'text' => 'С сайта', 'consent' => ['ip' => '10.0.0.2']]);
 ok($b['contact_id'] !== $s['contact_id'], 'бот без телефона и сайт с телефоном — пока два контакта');
+// набранный руками телефон — только заявление: не склеиваем, а помечаем возможный дубль для руководителя
 $m = Leads::capture(['channel' => 'bot', 'telegram_id' => 555001, 'phone' => '+79995550001', 'text' => 'Мой телефон', 'consent' => ['telegram_id' => 555001]]);
+ok($m['contact_id'] === $b['contact_id'] && $m['possible_duplicate'] === $s['contact_id'], 'телефон набран в боте руками — контакты НЕ склеены, отмечен возможный дубль');
+ok(Contacts::find($s['contact_id'])['telegram_id'] === null, 'Telegram не привязан к контакту, найденному по набранному телефону');
+ok((int)$db->value("SELECT COUNT(*) FROM tasks WHERE kind = 'duplicate' AND done_at IS NULL") === 1, 'руководителю задача «проверить дубль»');
+// телефон отправлен кнопкой «Поделиться номером» — его подтвердил Telegram, склеиваем
+$m = Leads::capture(['channel' => 'bot', 'telegram_id' => 555001, 'phone' => '+79995550001', 'phone_verified' => true, 'text' => 'Мой телефон', 'consent' => ['telegram_id' => 555001]]);
 $left = (int)$db->value('SELECT COUNT(*) FROM contacts WHERE telegram_id = 555001 OR phone = ?', ['+79995550001']);
-ok($left === 1, 'когда в боте указан тот же телефон — контакты склеены в один');
+ok($left === 1, 'телефон подтверждён кнопкой Telegram — контакты склеены в один');
 ok((int)$db->value("SELECT COUNT(*) FROM audit_log WHERE action = 'merge'") === 1, 'склейка записана в журнал');
+
+// --- Чужой номер не открывает доступ к переписке жильца ---
+$victim = Leads::capture(['channel' => 'site', 'name' => 'Иванова Мария', 'phone' => '+79161230077', 'text' => 'Долг по кв. 42', 'consent' => ['ip' => '10.0.0.5']]);
+ok($victim['contact_created'] === true, 'первая заявка жильца — новый контакт (ему можно дать ссылку «Продолжить в Telegram»)');
+$evil = Leads::capture(['channel' => 'site', 'name' => 'Злоумышленник', 'phone' => '8 (916) 123-00-77', 'text' => 'хочу ответы', 'consent' => ['ip' => '6.6.6.6']]);
+ok($evil['contact_created'] === false, 'тот же телефон с сайта — контакт уже есть, ссылку с привязкой к заявке не выдаём');
+$evilBot = Leads::capture(['channel' => 'bot', 'telegram_id' => 666001, 'phone' => '+79161230077', 'text' => 'это я', 'consent' => ['telegram_id' => 666001]]);
+ok($evilBot['contact_id'] !== $victim['contact_id'] && Contacts::find($victim['contact_id'])['telegram_id'] === null, 'в боте набран чужой телефон — Telegram злоумышленника к жильцу не привязан');
+ok((int)$db->value('SELECT COUNT(*) FROM deals WHERE contact_id = ?', [$evilBot['contact_id']]) === 1 && $evilBot['deal_id'] !== $victim['deal_id'], 'его сообщение — в отдельной заявке, не в заявке жильца');
+try {
+    Leads::capture(['channel' => 'bot', 'telegram_id' => 666002, 'phone' => '+79161230077', 'text' => 'без согласия']);
+    ok(false, 'чужое согласие по набранному телефону не «наследуется»');
+} catch (InvalidArgumentException) {
+    ok(true, 'чужое согласие по набранному телефону не «наследуется»');
+}
+Leads::capture(['channel' => 'site', 'name' => 'Злоумышленник', 'phone' => '+79001112233', 'telegram_username' => '@victim_nick', 'text' => 'x', 'consent' => ['ip' => '6.6.6.6']]);
+$realVictim = Leads::capture(['channel' => 'bot', 'telegram_id' => 777001, 'telegram_username' => 'victim_nick', 'text' => 'мой вопрос', 'consent' => ['telegram_id' => 777001]]);
+ok($realVictim['contact_created'] === true, 'ник, набранный на сайте чужим человеком, не склеивает его контакт с настоящим владельцем ника');
 
 // --- Журнал без персональных данных ---
 $audit = json_encode($db->all('SELECT details FROM audit_log'), JSON_UNESCAPED_UNICODE);

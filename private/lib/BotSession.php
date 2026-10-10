@@ -42,8 +42,13 @@ final class BotSession
     {
         $db = App::db();
         $n = 0;
-        foreach ($db->all("SELECT telegram_id, data FROM bot_sessions WHERE state <> '' AND updated_at < ?", [Db::ts(App::now()->modify('-24 hours'))]) as $row) {
-            $s = new self((int)$row['telegram_id'], 'x', json_decode((string)$row['data'], true) ?: []);
+        foreach ($db->all('SELECT telegram_id, state, data FROM bot_sessions WHERE updated_at < ?', [Db::ts(App::now()->modify('-24 hours'))]) as $row) {
+            $data = json_decode((string)$row['data'], true) ?: [];
+            // черновик — незаконченный диалог или текст/имя/телефон, ждущие согласия
+            if ($row['state'] === '' && !array_intersect_key($data, array_flip(['pending_text', 'name', 'phone', 'text', 'phone_verified']))) {
+                continue;
+            }
+            $s = new self((int)$row['telegram_id'], 'x', $data);
             $s->reset();
             $s->save();
             $n++;

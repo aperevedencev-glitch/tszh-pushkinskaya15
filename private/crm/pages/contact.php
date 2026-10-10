@@ -23,6 +23,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'anony
     CrmApp::redirect('/crm/contact.php?id=' . $id);
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'merge') {
+    // объединение возможного дубля: этот контакт переносится в указанный, все заявки и согласия — туда же
+    $into = (int)($_POST['into'] ?? 0);
+    $target = Contacts::find($into);
+    if (trim((string)($_POST['confirm'] ?? '')) !== 'ОБЪЕДИНИТЬ') {
+        CrmApp::flash('Для подтверждения введите слово ОБЪЕДИНИТЬ.', 'err');
+    } elseif (!$target || $into === $id || $target['anonymized_at'] || $c['anonymized_at']) {
+        CrmApp::flash('Объединить можно только два разных необезличенных контакта.', 'err');
+    } elseif ($c['telegram_id'] && $target['telegram_id'] && (int)$c['telegram_id'] !== (int)$target['telegram_id']) {
+        CrmApp::flash('У обоих контактов свой Telegram — это разные люди или разные аккаунты. Объединение отменено.', 'err');
+    } else {
+        $db->tx(static function () use ($db, $id, $into) {
+            Contacts::merge($id, $into, CrmApp::uid());
+            $db->run("UPDATE tasks SET done_at = ?, done_by = ? WHERE kind = 'duplicate' AND done_at IS NULL AND deal_id IN (SELECT id FROM deals WHERE contact_id = ?)",
+                [Db::ts(), CrmApp::uid(), $into]);
+        });
+        CrmApp::flash('Контакты объединены: заявки, согласия и источники перенесены.');
+        CrmApp::redirect('/crm/contact.php?id=' . $into);
+    }
+    CrmApp::redirect('/crm/contact.php?id=' . $id);
+}
+
 $consents = $db->all('SELECT * FROM consents WHERE contact_id = ? ORDER BY id DESC', [$id]);
 $deals = $db->all('SELECT id, number, stage, created_at FROM deals WHERE contact_id = ? ORDER BY id DESC', [$id]);
 $audit = $db->all("SELECT a.*, u.name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity = 'contact' AND a.entity_id = ? ORDER BY a.id DESC", [$id]);
@@ -50,7 +72,21 @@ $html .= '</ul></section></div><aside class="side-col"><section class="card"><h2
 foreach ($deals as $d) {
     $html .= '<li><a class="num" href="/crm/deal.php?id=' . (int)$d['id'] . '">' . $e($d['number']) . '</a> — ' . CrmApp::stageLabel($d['stage']) . ', ' . CrmApp::dt($d['created_at'], false) . '</li>';
 }
-$html .= '</ul></section><section class="card danger"><h2>Удалить персональные данные</h2>';
+$dup = $db->one("SELECT t.id FROM tasks t JOIN deals d ON d.id = t.deal_id WHERE t.kind = 'duplicate' AND t.done_at IS NULL AND d.contact_id = ? LIMIT 1", [$id]);
+$dupTarget = null;
+if ($dup && preg_match('/контакт №(\d+)/u', (string)$db->value('SELECT title FROM tasks WHERE id = ?', [$dup['id']]), $m)) {
+    $dupTarget = (int)$m[1];
+}
+$html .= '</ul></section>';
+if (!$c['anonymized_at']) {
+    $html .= '<section class="card"><h2>Объединить с другим контактом</h2>'
+        . ($dupTarget ? '<p class="notice">Возможный дубль: телефон из Telegram совпадает с контактом <a href="/crm/contact.php?id=' . $dupTarget . '">№' . $dupTarget . '</a>. Объединяйте, только если убедились, что это один человек (например, позвонили).</p>' : '')
+        . '<form method="post" class="form">' . CrmApp::csrfField() . '<input type="hidden" name="action" value="merge">'
+        . '<label for="m-into">Номер контакта, в который перенести этот</label><input class="inp narrow-wide" id="m-into" name="into" inputmode="numeric" required value="' . ($dupTarget ?: '') . '">'
+        . '<label for="m-confirm">Для подтверждения впишите ОБЪЕДИНИТЬ</label><input class="inp narrow-wide" id="m-confirm" name="confirm" autocomplete="off" required>'
+        . '<button class="btn ghost" type="submit">Объединить</button></form></section>';
+}
+$html .= '<section class="card danger"><h2>Удалить персональные данные</h2>';
 if ($c['anonymized_at']) {
     $html .= '<p>Данные обезличены ' . CrmApp::dt($c['anonymized_at']) . '.</p>';
 } else {

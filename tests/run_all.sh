@@ -16,7 +16,7 @@ run() { local name=$1; shift; echo; echo "━━ $name"; if "$@"; then echo "━
 echo "▶ Чистая установка в $D"
 mkdir -p "$D"
 rsync -a --delete --exclude 'config.php' --exclude 'data/*' --exclude 'logs/*' public private "$D/"
-rm -rf "$D"/private/data/*.sqlite* "$D"/private/data/install.lock "$D"/private/data/sessions "$D"/private/logs/*.log "$D"/private/backups/db-*
+rm -rf "$D"/private/data/*.sqlite* "$D"/private/data/install.lock "$D"/private/data/install_attempts.json "$D"/private/data/sessions "$D"/private/logs/*.log "$D"/private/backups/db-*
 INSTALL_KEY=local_install_$(date +%s)
 php tests/make_config.php "$D/private" "http://127.0.0.1:$PORT" "http://127.0.0.1:8091" "$INSTALL_KEY" || exit 1
 chown -R www-data:www-data "$D"
@@ -54,6 +54,8 @@ run "Вебхук по HTTP"           python3 tests/webhook_http_test.py
 rm -f "$D"/private/data/*.sqlite*
 php tests/seed_demo.php "$D/private" >/dev/null && chown -R www-data:www-data "$D"
 run "CRM в браузере"           python3 tests/e2e_crm.py
+# Этап 6: ссылки, 375/390 px, консоль, чужие запросы, закрытые адреса, секреты в публичной папке и в git, Lighthouse (если есть LIGHTHOUSE)
+run "Этап 6: итоговая проверка" env REPORT_JSON="${SHOTS:+$SHOTS/final.json}" python3 tests/final_audit.py
 
 echo
 if [ ${#FAILED[@]} -eq 0 ]; then echo "✅ Все наборы тестов прошли"; exit 0; fi

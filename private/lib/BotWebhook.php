@@ -8,7 +8,8 @@ declare(strict_types=1);
  */
 final class BotWebhook
 {
-    public static function handle(): void
+    /** $raw и $headerSecret — только для тестов; на сервере берутся из запроса. */
+    public static function handle(?string $raw = null, ?string $headerSecret = null): void
     {
         header('Content-Type: text/plain; charset=utf-8');
         header('Cache-Control: no-store');
@@ -19,7 +20,7 @@ final class BotWebhook
             return;
         }
         $secret = (string)App::cfg('telegram.webhook_secret', '');
-        $given = (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
+        $given = $headerSecret ?? (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
         if ($secret === '' || !hash_equals($secret, $given)) {
             http_response_code(403);
             Log::event('webhook_bad_secret', ['has_header' => $given !== '']);
@@ -27,7 +28,7 @@ final class BotWebhook
             return;
         }
 
-        $raw = file_get_contents('php://input', false, null, 0, 1048576);
+        $raw ??= file_get_contents('php://input', false, null, 0, 1048576);
         $update = json_decode((string)$raw, true);
         if (!is_array($update) || !isset($update['update_id'])) {
             http_response_code(400);
@@ -37,8 +38,15 @@ final class BotWebhook
 
         try {
             App::db()->insert('tg_updates', ['update_id' => (int)$update['update_id'], 'received_at' => Db::ts()]);
-        } catch (PDOException) {
-            echo 'duplicate';   // Telegram прислал то же обновление повторно — уже обработано
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000' || (string)($e->errorInfo[0] ?? '') === '23000') {
+                echo 'duplicate';   // Telegram прислал то же обновление повторно — уже обработано
+                return;
+            }
+            // база недоступна: отвечаем ошибкой, чтобы Telegram прислал обновление ещё раз позже
+            Log::error('webhook_db_failed', ['update_id' => (int)$update['update_id'], 'err' => $e->getMessage()]);
+            http_response_code(503);
+            echo 'retry later';
             return;
         }
 

@@ -34,13 +34,16 @@ final class Leads
         }
 
         return App::db()->tx(function () use ($in, $channel, $text, $now, $wh, $offHours) {
-            $contactId = Contacts::resolve(
+            $who = Contacts::resolveDetailed(
                 $in['name'] ?? null,
                 $in['phone'] ?? null,
                 isset($in['telegram_id']) ? (int)$in['telegram_id'] : null,
                 $in['telegram_username'] ?? null,
-                $in['email'] ?? null
+                $in['email'] ?? null,
+                $channel,
+                !empty($in['phone_verified'])
             );
+            $contactId = $who['id'];
             if (!empty($in['consent'])) {
                 Contacts::addConsent($contactId, $channel, $in['consent']['ip'] ?? null, $in['consent']['telegram_id'] ?? null);
             } elseif (!Contacts::hasConsent($contactId)) {
@@ -66,7 +69,8 @@ final class Leads
                 );
                 if ($recent) {
                     return ['deal_id' => (int)$deal['id'], 'number' => $deal['number'], 'contact_id' => $contactId,
-                        'created' => false, 'duplicate' => true, 'off_hours' => $offHours];
+                        'created' => false, 'duplicate' => true, 'off_hours' => $offHours,
+                        'contact_created' => false, 'possible_duplicate' => $who['conflict']];
                 }
             }
 
@@ -93,10 +97,14 @@ final class Leads
                         $wh->nextStart($now));
                 }
             }
+            if ($who['conflict']) {
+                self::flagPossibleDuplicate($dealId, $deal['number'], $who['conflict'], (string)$in['phone']);
+            }
             Outbox::notifyManager($deal, $created ? 'new' : 'message', $channel === 'bot' ? 'Telegram-бот' : 'сайт');
 
             return ['deal_id' => $dealId, 'number' => $deal['number'], 'contact_id' => $contactId,
-                'created' => $created, 'duplicate' => false, 'off_hours' => $offHours];
+                'created' => $created, 'duplicate' => false, 'off_hours' => $offHours,
+                'contact_created' => $who['created'], 'possible_duplicate' => $who['conflict']];
         });
     }
 
@@ -108,10 +116,28 @@ final class Leads
         if (!empty($in['telegram_id'])) {
             $id = $db->value('SELECT id FROM contacts WHERE telegram_id = ?', [(int)$in['telegram_id']]);
         }
-        if (!$id && !empty($in['phone'])) {
+        // в боте телефон набран руками — по нему чужое согласие не «наследуем»
+        if (!$id && !empty($in['phone']) && ($in['channel'] ?? '') !== 'bot') {
             $id = $db->value('SELECT id FROM contacts WHERE phone = ?', [$in['phone']]);
         }
         return $id ? Contacts::hasConsent((int)$id) : false;
+    }
+
+    /**
+     * Человек в Telegram указал телефон, который уже есть у другого контакта, но не подтвердил его кнопкой.
+     * Контакты не склеиваем: пусть руководитель проверит (например, звонком) и объединит в карточке контакта.
+     */
+    private static function flagPossibleDuplicate(int $dealId, string $number, int $otherContactId, string $phone): void
+    {
+        Deals::addMessage($dealId, 'note', 'bot', 'system',
+            'Жилец указал телефон ' . Phone::mask($phone) . ', который уже есть у контакта №' . $otherContactId
+            . '. Номер не подтверждён через Telegram, поэтому контакты не объединены. Проверьте и при необходимости объедините в карточке контакта.');
+        $admin = App::db()->value("SELECT id FROM users WHERE role = 'admin' AND active = 1 ORDER BY id LIMIT 1");
+        $open = App::db()->value("SELECT 1 FROM tasks WHERE deal_id = ? AND kind = 'duplicate' AND done_at IS NULL", [$dealId]);
+        if (!$open) {
+            Deals::addTask($dealId, $admin ? (int)$admin : null, 'duplicate', "Проверить возможный дубль контакта по заявке $number (контакт №$otherContactId)", App::now());
+        }
+        Audit::log(null, 'contact', $otherContactId, 'possible_duplicate', ['deal' => $number]);
     }
 
     private static function emptyText(string $channel): string

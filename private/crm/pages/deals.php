@@ -60,7 +60,7 @@ if ($off === '1') {
     $where[] = 'd.is_off_hours = 1';
 }
 
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = min(10000, max(1, (int)($_GET['page'] ?? 1)));
 $per = 50;
 $sqlWhere = implode(' AND ', $where);
 $total = (int)$db->value("SELECT COUNT(*) FROM deals d JOIN contacts c ON c.id = d.contact_id WHERE $sqlWhere", $params);

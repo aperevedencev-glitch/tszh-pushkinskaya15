@@ -70,6 +70,34 @@ final class Installer
         return true;
     }
 
+    /** Лимит попыток мастера: 5 за 15 минут с одного адреса. Файл — потому что таблиц до установки нет. */
+    public static function attempt(string $ip, int $max = 5, int $window = 900): bool
+    {
+        $file = dirname(self::lockFile()) . '/install_attempts.json';
+        $fh = @fopen($file, 'c+');
+        if (!$fh) {
+            return true;   // нет прав на запись — проверка «Запись в private/data» уже покажет проблему
+        }
+        flock($fh, LOCK_EX);
+        $data = json_decode((string)stream_get_contents($fh), true) ?: [];
+        $key = hash('sha256', $ip);
+        $now = time();
+        $hits = array_values(array_filter((array)($data[$key] ?? []), static fn($t) => $t > $now - $window));
+        $ok = count($hits) < $max;
+        if ($ok) {
+            $hits[] = $now;
+        }
+        $data = array_filter($data, static fn($v) => max((array)$v ?: [0]) > $now - $window);
+        $data[$key] = $hits;
+        ftruncate($fh, 0);
+        rewind($fh);
+        fwrite($fh, json_encode($data));
+        flock($fh, LOCK_UN);
+        fclose($fh);
+        @chmod($file, 0600);
+        return $ok;
+    }
+
     public static function keyMatches(string $given): bool
     {
         $key = (string)App::cfg('install_key', '');

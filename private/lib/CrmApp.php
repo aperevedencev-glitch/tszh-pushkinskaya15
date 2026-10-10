@@ -73,7 +73,9 @@ final class CrmApp
         }
         $u = App::db()->one('SELECT * FROM users WHERE login = ? AND active = 1', [$login]);
         // проверяем хеш даже для несуществующего логина — чтобы время ответа не выдавало, есть ли такой пользователь
-        $hash = $u['password_hash'] ?? '$2y$10$0000000000000000000000000000000000000000000000000000.';
+        static $dummy = null;
+        $dummy ??= password_hash(bin2hex(random_bytes(8)), PASSWORD_DEFAULT);   // та же «цена», что у настоящих хешей
+        $hash = $u['password_hash'] ?? $dummy;
         if (!password_verify($password, $hash) || !$u) {
             Log::event('crm_login_failed', []);
             return 'Неверный логин или пароль.';
@@ -82,10 +84,20 @@ final class CrmApp
             App::db()->update('users', ['password_hash' => password_hash($password, PASSWORD_DEFAULT)], 'id = ?', [$u['id']]);
         }
         session_regenerate_id(true);
-        $_SESSION = ['uid' => (int)$u['id'], 'seen' => time(), 'csrf' => bin2hex(random_bytes(32))];
+        $_SESSION = ['uid' => (int)$u['id'], 'epoch' => (int)$u['session_epoch'], 'seen' => time(), 'csrf' => bin2hex(random_bytes(32))];
         App::db()->update('users', ['last_login_at' => Db::ts()], 'id = ?', [$u['id']]);
         Audit::log((int)$u['id'], 'user', (int)$u['id'], 'login');
         return null;
+    }
+
+    /** Завершить все входы сотрудника (смена или сброс пароля). Текущая сессия, если это он сам, остаётся. */
+    public static function bumpSessions(int $userId): void
+    {
+        App::db()->run('UPDATE users SET session_epoch = session_epoch + 1 WHERE id = ?', [$userId]);
+        if ((int)($_SESSION['uid'] ?? 0) === $userId) {
+            $_SESSION['epoch'] = (int)App::db()->value('SELECT session_epoch FROM users WHERE id = ?', [$userId]);
+            self::$user = null;
+        }
     }
 
     public static function logout(): void
@@ -107,8 +119,9 @@ final class CrmApp
         if (!$uid) {
             return null;
         }
-        $u = App::db()->one('SELECT id, login, name, role, telegram_id, is_on_duty, active FROM users WHERE id = ?', [$uid]);
-        if (!$u || !(int)$u['active']) {
+        $u = App::db()->one('SELECT id, login, name, role, telegram_id, is_on_duty, active, session_epoch FROM users WHERE id = ?', [$uid]);
+        // отключён или пароль сменили/сбросили после этого входа — сессия больше не действует
+        if (!$u || !(int)$u['active'] || (int)$u['session_epoch'] !== (int)($_SESSION['epoch'] ?? 0)) {
             $_SESSION = [];
             return null;
         }

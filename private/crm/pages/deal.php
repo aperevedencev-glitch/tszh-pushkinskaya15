@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = 'Задача добавлена.';
                 break;
             case 'task_done':
-                $err = CrmDeals::completeTask((int)($_POST['task_id'] ?? 0), $uid) ? null : 'Задачу нельзя закрыть.';
+                $err = CrmDeals::completeTask((int)($_POST['task_id'] ?? 0), $uid, (int)$deal['id']) ? null : 'Задачу нельзя закрыть.';
                 $msg = 'Задача выполнена.';
                 break;
             default:
@@ -89,7 +89,10 @@ $names = array_column($db->all('SELECT id, name FROM users'), 'name', 'id');
 $sources = $db->all('SELECT * FROM sources WHERE deal_id = ? ORDER BY id', [$id]);
 $first = $db->one('SELECT * FROM sources WHERE contact_id = ? ORDER BY id LIMIT 1', [$c['id']]);
 $tasks = $db->all('SELECT * FROM tasks WHERE deal_id = ? ORDER BY done_at IS NOT NULL, due_at', [$id]);
-$other = $db->all('SELECT id, number, stage, created_at FROM deals WHERE contact_id = ? AND id <> ? ORDER BY id DESC', [$c['id'], $id]);
+$other = array_values(array_filter(
+    $db->all('SELECT id, number, stage, manager_id, created_at FROM deals WHERE contact_id = ? AND id <> ? ORDER BY id DESC', [$c['id'], $id]),
+    [CrmApp::class, 'canView']
+));
 
 $feed = [];
 foreach ($db->all('SELECT * FROM messages WHERE deal_id = ? ORDER BY id', [$id]) as $m) {

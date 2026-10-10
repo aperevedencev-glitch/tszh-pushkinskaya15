@@ -130,6 +130,53 @@ at('2027-10-20 03:00');
 $n2 = Privacy::retention();
 ok($n2 === 1 && Contacts::find($n['contact_id'])['anonymized_at'], 'через 12 месяцев без активности — автоматическое обезличивание');
 
+// --- Безопасность после независимой проверки ---
+echo "\nБезопасность\n";
+App::setNow(null);
+$oleg = $db->insert('users', ['login' => 'oleg', 'name' => 'Олег', 'role' => 'manager', 'password_hash' => password_hash('Old-Passw0rd!', PASSWORD_DEFAULT), 'created_at' => Db::ts()]);
+// вход Олега на «другом устройстве»
+$_SESSION = ['uid' => $oleg, 'epoch' => 0];
+$ref = new ReflectionProperty(CrmApp::class, 'user');
+$ref->setValue(null, null);
+ok(CrmApp::uid() === $oleg, 'сотрудник вошёл');
+$_SESSION = ['uid' => $boss, 'epoch' => 0];
+$ref->setValue(null, null);
+CrmApp::bumpSessions($oleg);   // руководитель сбросил пароль Олегу
+$_SESSION = ['uid' => $oleg, 'epoch' => 0];
+$ref->setValue(null, null);
+ok(CrmApp::user() === null, 'после сброса пароля прежний вход сотрудника больше не действует');
+$_SESSION = ['uid' => $boss, 'epoch' => 0];
+$ref->setValue(null, null);
+CrmApp::bumpSessions($boss);   // руководитель сменил свой пароль сам
+ok(CrmApp::uid() === $boss, 'при смене своего пароля текущая сессия остаётся');
+$_SESSION = [];
+$ref->setValue(null, null);
+
+// задачи при смене ответственного и закрытие задачи только из своей сделки
+$tdA = Leads::capture(['channel' => 'site', 'name' => 'Т1', 'phone' => '+79035557001', 'text' => 'a', 'consent' => ['ip' => '1.1.1.1']]);
+$tdB = Leads::capture(['channel' => 'site', 'name' => 'Т2', 'phone' => '+79035557002', 'text' => 'b', 'consent' => ['ip' => '1.1.1.1']]);
+$dealA = Deals::find($tdA['deal_id']);
+$db->update('deals', ['manager_id' => $anna], 'id = ?', [$dealA['id']]);
+$dealA = Deals::find($tdA['deal_id']);
+$manual = Deals::addTask((int)$dealA['id'], $anna, 'manual', 'Перезвонить', App::now()->modify('+1 day'));
+$admTask = Deals::addTask((int)$dealA['id'], $boss, 'delete_request', 'Удаление', App::now());
+CrmDeals::assign($dealA, $oleg, $boss);
+ok((int)$db->value('SELECT user_id FROM tasks WHERE id = ?', [$manual]) === $oleg, 'при смене ответственного его открытые задачи переходят новому');
+ok((int)$db->value('SELECT user_id FROM tasks WHERE id = ?', [$admTask]) === $boss, 'задачи руководителя остаются у руководителя');
+$_SESSION = ['uid' => $oleg, 'epoch' => 0];
+$ref->setValue(null, null);
+ok(!CrmDeals::completeTask($manual, $oleg, (int)$tdB['deal_id']), 'задачу нельзя закрыть из чужой сделки');
+ok(CrmDeals::completeTask($manual, $oleg, (int)$tdA['deal_id']), 'из своей сделки — закрывается');
+$_SESSION = [];
+$ref->setValue(null, null);
+
+// секреты не попадают в журнал
+Log::error('scrub_test', ['err' => 'curl to https://api/botTEST/send failed; pass=' . App::cfg('app_secret') . '; token 123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw0']);
+$logFile = APP_PRIVATE . '/logs/app-' . date('Y-m') . '.log';
+$tail = is_file($logFile) ? implode('', array_slice(file($logFile), -3)) : json_encode(Settings::get('last_error'));
+ok(!str_contains($tail, App::cfg('app_secret')) && !str_contains($tail, 'AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw0'), 'секреты и токены вырезаются из журнала при записи');
+ok(!str_contains(json_encode(Settings::get('last_error')), App::cfg('app_secret')), 'и из «последней ошибки» в базе (а значит, из бэкапов)');
+
 App::setNow(null);
 echo "\nИтого ошибок: $fails\n";
 exit($fails ? 1 : 0);

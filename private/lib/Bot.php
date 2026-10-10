@@ -156,6 +156,12 @@ final class Bot
             return;
         }
         $contact = Contacts::find((int)$deal['contact_id']);
+        if ($contact['anonymized_at']) {
+            // данные по этой заявке удалены по 152-ФЗ — старую ссылку к ним не привязываем
+            $this->s->save();
+            $this->say('Эта заявка закрыта. Чтобы задать новый вопрос, нажмите «Оставить заявку».', $this->menu());
+            return;
+        }
         if ($contact['telegram_id'] && (int)$contact['telegram_id'] !== $this->uid) {
             $this->s->save();
             $this->say("Заявка {$number} уже связана с другим аккаунтом Telegram. Если это ваша заявка — напишите сюда новое сообщение через «Оставить заявку», менеджер разберётся.", $this->menu());
@@ -177,7 +183,7 @@ final class Bot
 
         $this->s->data['deal_number'] = $number;
         $this->s->save();
-        $name = $contact['name'] ? ', ' . $this->e($contact['name']) : '';
+        $name = '';   // по имени не здороваемся: ссылку мог переслать кто-то другой
         if (in_array($deal['stage'], Deals::OPEN, true)) {
             $this->say("Здравствуйте{$name}! Я бот ТСЖ «Пушкинская 15» — автоматический помощник.\n\nВаша заявка <b>{$number}</b> у нас. Если хотите что-то добавить — просто напишите сюда, сообщение попадёт в эту заявку. Ответ менеджера придёт в этот чат.", $this->menu());
         } else {
@@ -228,6 +234,8 @@ final class Bot
             }
         }
         $this->s->data['phone'] = $phone;
+        // кнопкой «Поделиться номером» телефон подтверждает сам Telegram; набранный руками — нет
+        $this->s->data['phone_verified'] = isset($m['contact']) && $phone !== null;
         $this->s->state = 'lead_text';
         $this->s->save();
         $this->say('3/4. Опишите, что случилось или что нужно.', $this->cancelKb());
@@ -308,6 +316,7 @@ final class Bot
             'telegram_username' => $this->from['username'] ?? null,
             'name'              => $lead['name'] ?? $this->profileName(),
             'phone'             => $lead['phone'] ?? null,
+            'phone_verified'    => !empty($lead['phone_verified']),
             'text'              => $text,
             'deal_number'       => $this->s->data['deal_number'] ?? null,
         ];
@@ -389,7 +398,7 @@ final class Bot
         if ($data === 'consent:lead' && $this->s->state === 'lead_consent') {
             $this->clearButtons($msgId);
             $d = $this->s->data;
-            $this->passToManager((string)$d['text'], ['telegram_id' => $this->uid], ['name' => $d['name'] ?? null, 'phone' => $d['phone'] ?? null]);
+            $this->passToManager((string)$d['text'], ['telegram_id' => $this->uid], ['name' => $d['name'] ?? null, 'phone' => $d['phone'] ?? null, 'phone_verified' => !empty($d['phone_verified'])]);
             return;
         }
         if ($data === 'consent:ask' && !empty($this->s->data['pending_text'])) {

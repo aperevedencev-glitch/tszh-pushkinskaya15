@@ -9,28 +9,58 @@ final class Contacts
         return App::db()->one('SELECT * FROM contacts WHERE id = ?', [$id]);
     }
 
+    /** Совместимая обёртка: только id контакта. */
+    public static function resolve(?string $name, ?string $phone, ?int $tgId, ?string $tgUsername, ?string $email = null,
+        string $channel = 'site', bool $phoneVerified = false): int
+    {
+        return self::resolveDetailed($name, $phone, $tgId, $tgUsername, $email, $channel, $phoneVerified)['id'];
+    }
+
     /**
      * Найти или создать контакт и дописать недостающие поля.
-     * Если телефон и Telegram указывают на два разных контакта — склеиваем их.
+     *
+     * Доверие к данным разное, и от этого зависит склейка:
+     *  - Telegram ID приходит от самого Telegram — ему верим;
+     *  - телефон, отправленный кнопкой «Поделиться номером» (contact.user_id = автор), — подтверждён Telegram;
+     *  - телефон и ник, набранные руками (сайт, бот), — только заявление человека.
+     * Набранный руками телефон НЕ привязывает Telegram к чужому контакту и не склеивает контакты:
+     * иначе любой, кто знает номер жильца, получал бы ответы менеджера на его заявки.
+     * Такой случай помечается как возможный дубль (conflict) — руководитель проверяет и объединяет в CRM.
+     *
+     * @return array{id:int, created:bool, conflict:?int}
      */
-    public static function resolve(?string $name, ?string $phone, ?int $tgId, ?string $tgUsername, ?string $email = null): int
+    public static function resolveDetailed(?string $name, ?string $phone, ?int $tgId, ?string $tgUsername, ?string $email = null,
+        string $channel = 'site', bool $phoneVerified = false): array
     {
         $db = App::db();
         $now = Db::ts();
+        $conflict = null;
         $byPhone = $phone ? $db->one('SELECT * FROM contacts WHERE phone = ?', [$phone]) : null;
         $byTg = $tgId ? $db->one('SELECT * FROM contacts WHERE telegram_id = ?', [$tgId]) : null;
-        $byUser = (!$byPhone && !$byTg && $tgUsername)
+
+        if ($byPhone && $tgId && (int)$byPhone['id'] !== (int)($byTg['id'] ?? 0)) {
+            // телефон принадлежит другому контакту, а пишет человек из Telegram
+            $ownedByOtherTg = $byPhone['telegram_id'] && (int)$byPhone['telegram_id'] !== $tgId;
+            if (!$phoneVerified || $ownedByOtherTg) {
+                $conflict = (int)$byPhone['id'];
+                $byPhone = null;
+                $phone = null;     // номер занят другим контактом — в этот не записываем
+            }
+        }
+        // ник, набранный на сайте, ищем только для заявок без Telegram: он ничего не открывает
+        $byUser = (!$byPhone && !$byTg && !$tgId && $tgUsername)
             ? $db->one('SELECT * FROM contacts WHERE telegram_username = ? AND anonymized_at IS NULL ORDER BY id LIMIT 1', [$tgUsername])
             : null;
 
         if ($byPhone && $byTg && (int)$byPhone['id'] !== (int)$byTg['id']) {
+            // сюда попадаем только с подтверждённым телефоном
             self::merge((int)$byTg['id'], (int)$byPhone['id']);
             $byTg = null;
         }
         $c = $byPhone ?: $byTg ?: $byUser;
 
         if (!$c) {
-            return $db->insert('contacts', [
+            $id = $db->insert('contacts', [
                 'name'              => $name,
                 'phone'             => $phone,
                 'telegram_id'       => $tgId,
@@ -40,6 +70,7 @@ final class Contacts
                 'updated_at'        => $now,
                 'last_activity_at'  => $now,
             ]);
+            return ['id' => $id, 'created' => true, 'conflict' => $conflict];
         }
 
         $id = (int)$c['id'];
@@ -65,7 +96,7 @@ final class Contacts
             $upd['name'] = $name;
         }
         $db->update('contacts', $upd, 'id = ?', [$id]);
-        return $id;
+        return ['id' => $id, 'created' => false, 'conflict' => $conflict];
     }
 
     /** Перенести всё из контакта $from в $into и удалить $from. */

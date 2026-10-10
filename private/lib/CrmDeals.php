@@ -126,7 +126,9 @@ final class CrmDeals
         }
         App::db()->tx(function () use ($deal, $managerId, $byUserId) {
             App::db()->update('deals', ['manager_id' => $managerId, 'updated_at' => Db::ts()], 'id = ?', [$deal['id']]);
-            App::db()->run('UPDATE tasks SET user_id = ? WHERE deal_id = ? AND done_at IS NULL AND kind = ?', [$managerId, $deal['id'], 'callback']);
+            // открытые задачи прежнего ответственного переходят новому (задачи руководителя — удаление данных, дубли — остаются у него)
+            App::db()->run("UPDATE tasks SET user_id = ? WHERE deal_id = ? AND done_at IS NULL AND kind IN ('callback', 'manual', 'question') AND (user_id = ? OR user_id IS NULL)",
+                [$managerId, $deal['id'], $deal['manager_id']]);
             Audit::log($byUserId, 'deal', (int)$deal['id'], 'assign', ['from' => $deal['manager_id'], 'to' => $managerId]);
             if ($managerId && $managerId !== $byUserId) {
                 Outbox::notifyManager(self::fresh($deal), 'new', 'передана вам в CRM');
@@ -151,10 +153,10 @@ final class CrmDeals
         return null;
     }
 
-    public static function completeTask(int $taskId, int $userId): bool
+    public static function completeTask(int $taskId, int $userId, ?int $dealId = null): bool
     {
         $t = App::db()->one('SELECT * FROM tasks WHERE id = ?', [$taskId]);
-        if (!$t || $t['done_at']) {
+        if (!$t || $t['done_at'] || ($dealId !== null && (int)$t['deal_id'] !== $dealId)) {
             return false;
         }
         if (!CrmApp::isAdmin() && (int)$t['user_id'] !== $userId) {

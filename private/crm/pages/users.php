@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pass = Passwords::generate();
         $db->update('users', ['password_hash' => password_hash($pass, PASSWORD_DEFAULT)], 'id = ?', [$id]);
         Audit::log($uid, 'user', $id, 'password_reset');
+        CrmApp::bumpSessions($id);
         $_SESSION['new_password'] = ['login' => $target['login'], 'pass' => $pass];
         $msg = 'Пароль сброшен. Новый пароль показан один раз.';
     } elseif ($action === 'toggle') {

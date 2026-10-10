@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$err) {
             $db->update('users', ['password_hash' => password_hash($new, PASSWORD_DEFAULT)], 'id = ?', [$u['id']]);
             Audit::log((int)$u['id'], 'user', (int)$u['id'], 'password_change');
+            CrmApp::bumpSessions((int)$u['id']);   // на других устройствах придётся войти заново
             session_regenerate_id(true);
         }
         CrmApp::flash($err ?? 'Пароль изменён.', $err ? 'err' : 'ok');

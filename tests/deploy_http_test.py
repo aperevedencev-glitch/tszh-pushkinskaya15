@@ -61,6 +61,9 @@ def cfg(path):
 
 
 def q(sql, *args):
+    # пока базы нет — не открываем: sqlite3 создал бы пустой файл от root, и сайт не смог бы в него писать
+    if not os.path.exists(DB):
+        raise FileNotFoundError(DB)
     con = sqlite3.connect(DB)
     try:
         return con.execute(sql, args).fetchall()
@@ -111,7 +114,7 @@ def test_install(br):
 
     code, _, body = http("/install.php", b"install_key=x&login=evil&name=x&password=Evil-Passw0rd!&password2=Evil-Passw0rd!",
                          {"Content-Type": "application/x-www-form-urlencoded"})
-    check(code == 403 and q("SELECT COUNT(*) FROM sqlite_master WHERE name = 'users'")[0][0] in (0, 1), "POST без CSRF-токена — 403")
+    check(code == 403, "POST без CSRF-токена — 403")
 
     def submit(key, login, name, pw, pw2=None):
         p.fill("#i-key", key)
@@ -125,11 +128,14 @@ def test_install(br):
 
     html = submit("неверный-ключ", "boss", "Руководитель Ирина", PASS)
     check("Неверный ключ установки" in html, "неверный ключ установки — отказ")
+    check(cfg("app_secret") == "" and (not os.path.exists(DB) or q("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'")[0][0] == 0),
+          "с неверным ключом мастер ничего не записал: ни секретов в config.php, ни таблиц")
     html = submit(KEY, "boss", "Руководитель Ирина", "boss123456")
     check("не должен содержать логин" in html, "пароль, содержащий логин, — отказ")
     html = submit(KEY, "boss", "Руководитель Ирина", PASS, PASS + "x")
     check("Пароли не совпадают" in html, "несовпадающие пароли — отказ")
-    check(q("SELECT COUNT(*) FROM users")[0][0] == 0, "после отказов сотрудников в базе нет")
+    check(not os.path.exists(DB) or q("SELECT COUNT(*) FROM sqlite_master WHERE name = 'users'")[0][0] == 0
+          or q("SELECT COUNT(*) FROM users")[0][0] == 0, "после отказов сотрудников в базе нет")
 
     html = submit(KEY, "boss", "Руководитель Ирина", PASS)
     check("Установка завершена" in html, "установка прошла")

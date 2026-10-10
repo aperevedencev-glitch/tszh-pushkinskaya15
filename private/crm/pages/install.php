@@ -18,9 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!Installer::ready()) {
             throw new InvalidArgumentException('Сначала исправьте пункты, отмеченные красным.');
         }
-        Installer::fillSecrets();      // пустые app_secret/webhook_secret → случайные значения (нужны и для ограничения попыток)
-        Schema::create(App::db());     // таблицы нужны для ограничения попыток
-        if (!RateLimit::hit('install', $ip, 5, 900)) {
+        // до проверки ключа ничего не пишем ни в базу, ни в config.php; лимит попыток — в файле
+        if (!Installer::attempt($ip)) {
             throw new InvalidArgumentException('Слишком много попыток. Подождите 15 минут.');
         }
         if (!Installer::keyMatches((string)($_POST['install_key'] ?? ''))) {

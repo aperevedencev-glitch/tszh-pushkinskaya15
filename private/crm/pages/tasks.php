@@ -29,13 +29,17 @@ $open = $db->all("SELECT t.*, d.number, u.name AS user_name FROM tasks t LEFT JO
     WHERE $cond AND t.done_at IS NULL ORDER BY t.due_at", $params);
 $done = $db->all("SELECT t.*, d.number, u.name AS user_name FROM tasks t LEFT JOIN deals d ON d.id = t.deal_id LEFT JOIN users u ON u.id = t.user_id
     WHERE $cond AND t.done_at >= ? ORDER BY t.done_at DESC LIMIT 50", array_merge($params, [Db::ts(App::now()->modify('-7 days'))]));
-$kinds = ['callback' => 'Связаться', 'delete_request' => 'Удаление данных', 'manual' => 'Задача', 'question' => 'Вопрос'];
+$kinds = ['callback' => 'Связаться', 'delete_request' => 'Удаление данных', 'manual' => 'Задача', 'question' => 'Вопрос', 'duplicate' => 'Дубль контакта'];
 
 $row = static function (array $t, bool $isDone) use ($e, $now, $kinds, $who): string {
     $late = !$isDone && $t['due_at'] < $now;
     $link = $t['deal_id'] ? '<a class="num" href="/crm/deal.php?id=' . (int)$t['deal_id'] . '">' . $e($t['number']) . '</a>' : '';
     if ($t['kind'] === 'delete_request' && CrmApp::isAdmin() && preg_match('/#(\d+)\)/', $t['title'], $m)) {
         $link .= ' <a href="/crm/contact.php?id=' . (int)$m[1] . '">Открыть запрос</a>';
+    }
+    if ($t['kind'] === 'duplicate' && CrmApp::isAdmin() && $t['deal_id']) {
+        $cid = (int)App::db()->value('SELECT contact_id FROM deals WHERE id = ?', [$t['deal_id']]);
+        $link .= ' <a href="/crm/contact.php?id=' . $cid . '">Проверить контакт</a>';
     }
     $h = '<tr class="' . ($late ? 'late' : '') . '"><td><span class="tag' . ($t['kind'] === 'delete_request' ? ' late' : '') . '">' . $e($kinds[$t['kind']] ?? $t['kind']) . '</span></td><td>' . $e($t['title']) . '</td><td>' . $link . '</td>'
         . '<td>' . CrmApp::dt($isDone ? $t['done_at'] : $t['due_at']) . ($late ? ' <b class="late-t">просрочена</b>' : '') . '</td><td>' . $e($t['user_name'] ?? '—') . '</td><td>';

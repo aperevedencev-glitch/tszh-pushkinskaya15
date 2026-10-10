@@ -253,6 +253,70 @@ $site2 = Leads::capture(['channel' => 'site', 'name' => 'Глеб', 'phone' => '
 $n = $db->one("SELECT * FROM outbox WHERE kind = 'notify_new' ORDER BY id DESC LIMIT 1");
 ok($n && (int)$n['chat_id'] === 80001 && !str_contains($n['payload'], 'Глеб') && !str_contains($n['payload'], '5550099'), 'уведомление менеджеру без имени и телефона');
 
+// 18. Безопасность: чужой номер, ссылка с сайта, черновики, сбой базы на вебхуке
+echo "\nБезопасность\n";
+at('2026-10-13 10:00');
+$res = Leads::capture(['channel' => 'site', 'name' => 'Иванова Мария', 'phone' => '+79161112200', 'text' => 'Вопрос по долгу', 'consent' => ['ip' => '10.0.0.9']]);
+$owner = user(71001, 'Мария', 'maria_i');
+send($owner, '/start ' . Deeplink::forDeal($res['number']));
+ok(str_contains(lastText(), $res['number']) && !str_contains(lastText(), 'Иванова'), 'по ссылке с сайта бот узнаёт заявку, но не называет имя из CRM');
+ok((int)Contacts::find($res['contact_id'])['telegram_id'] === 71001, 'Telegram привязан к контакту того, кто оставил заявку');
+send(user(71002, 'Чужой', 'evil'), '/start ' . Deeplink::forDeal($res['number']));
+ok(str_contains(lastText(), 'уже связана с другим аккаунтом') && (int)Contacts::find($res['contact_id'])['telegram_id'] === 71001, 'повторно та же ссылка у другого человека не срабатывает');
+
+// бот: телефон набран руками — к чужому контакту не привязываемся
+$site3 = Leads::capture(['channel' => 'site', 'name' => 'Пётр', 'phone' => '+79161113300', 'text' => 'Сайт', 'consent' => ['ip' => '10.0.0.8']]);
+$evil = user(71003, 'Злоумышленник', 'evil2');
+send($evil, Bot::BTN_LEAD);
+send($evil, 'Пётр');
+send($evil, '+7 916 111-33-00');
+send($evil, 'Пришлите ответы мне');
+press($evil, 'consent:lead');
+ok(Contacts::find($site3['contact_id'])['telegram_id'] === null, 'в боте набран чужой телефон — Telegram к контакту жильца не привязан');
+$evilContact = $db->one('SELECT * FROM contacts WHERE telegram_id = 71003');
+ok($evilContact && (int)$evilContact['id'] !== $site3['contact_id'] && $evilContact['phone'] === null, 'для пишущего — свой контакт, чужой номер в него не записан');
+ok((int)$db->value("SELECT COUNT(*) FROM tasks WHERE kind = 'duplicate' AND done_at IS NULL") >= 1, 'руководителю — задача проверить возможный дубль');
+// тот же сценарий, но номер отправлен кнопкой «Поделиться номером» — это подтверждение от Telegram
+$site4 = Leads::capture(['channel' => 'site', 'name' => 'Ольга', 'phone' => '+79161114400', 'text' => 'Сайт', 'consent' => ['ip' => '10.0.0.7']]);
+$olga = user(71004, 'Ольга', 'olga');
+send($olga, Bot::BTN_LEAD);
+send($olga, 'Ольга');
+send($olga, '', ['contact' => ['phone_number' => '79161114400', 'user_id' => 71004, 'first_name' => 'Ольга']]);
+send($olga, 'Дополнение из бота');
+press($olga, 'consent:lead');
+ok((int)Contacts::find($site4['contact_id'])['telegram_id'] === 71004, 'номер отправлен кнопкой Telegram — бот и сайт склеены в один контакт');
+
+// анонимизированный контакт по старой ссылке не «оживает»
+Privacy::anonymize($res['contact_id'], $admin, 'запрос субъекта');
+send(user(71005, 'Кто-то', null), '/start ' . Deeplink::forDeal($res['number']));
+$c = Contacts::find($res['contact_id']);
+ok($c['telegram_id'] === null && $c['anonymized_at'] !== null && str_contains(lastText(), 'закрыта'), 'старая ссылка на обезличенную заявку не привязывает Telegram');
+
+// черновик с текстом до согласия удаляется через 24 часа, даже вне диалога
+$nc = user(71006, 'Новенький', null);
+send($nc, 'Я Петров, кв 7, тел 89161112233, течёт кран');
+$raw = (string)$db->value('SELECT data FROM bot_sessions WHERE telegram_id = 71006');
+ok(str_contains($raw, 'Петров'), 'текст до согласия временно в черновике');
+at('2026-10-14 11:00');
+BotSession::purgeDrafts();
+ok(!str_contains((string)$db->value('SELECT data FROM bot_sessions WHERE telegram_id = 71006'), 'Петров'), 'через 24 часа черновик без согласия удалён');
+
+// вебхук при сбое базы — 503, чтобы Telegram повторил (а не «duplicate» и потеря сообщения)
+$cfgW = $cfg;
+$cfgW['telegram']['webhook_secret'] = 'test_secret_1234567890';
+App::init($cfgW);
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$body = json_encode(['update_id' => 999001, 'message' => ['message_id' => 1, 'from' => user(71007), 'chat' => ['id' => 71007, 'type' => 'private'], 'date' => time(), 'text' => '/start']]);
+ob_start(); BotWebhook::handle($body, 'test_secret_1234567890'); $o1 = ob_get_clean();
+ob_start(); BotWebhook::handle($body, 'test_secret_1234567890'); $o2 = ob_get_clean();
+ok($o1 === 'ok' && $o2 === 'duplicate', 'повторная доставка того же update_id — «duplicate»');
+$db->pdo->exec($db->driver === 'mysql' ? 'RENAME TABLE tg_updates TO tg_updates_off' : 'ALTER TABLE tg_updates RENAME TO tg_updates_off');
+ob_start(); BotWebhook::handle(str_replace('999001', '999002', $body), 'test_secret_1234567890'); $o3 = ob_get_clean();
+$db->pdo->exec($db->driver === 'mysql' ? 'RENAME TABLE tg_updates_off TO tg_updates' : 'ALTER TABLE tg_updates_off RENAME TO tg_updates');
+// в консоли код ответа не виден — проверяем текст ответа и журнал (по HTTP код 503 проверяет webhook_http_test)
+ok($o3 === 'retry later' && Settings::get('last_error')['event'] === 'webhook_db_failed', 'база недоступна — ответ «повторите позже» (503), ошибка в журнале, сообщение не потеряно');
+App::init($cfg);
+
 App::setNow(null);
 echo "\nИтого ошибок: $fails\n";
 exit($fails ? 1 : 0);

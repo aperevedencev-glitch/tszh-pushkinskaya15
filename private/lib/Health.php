@@ -192,13 +192,7 @@ final class Health
     /** Убирает из текста ошибок всё, похожее на секреты: токен бота, длинные ключи, пароли из DSN. */
     public static function scrub(string $s): string
     {
-        foreach ([App::cfg('telegram.bot_token'), App::cfg('telegram.webhook_secret'), App::cfg('app_secret'), App::cfg('db.pass'), App::cfg('install_key')] as $secret) {
-            if (is_string($secret) && strlen($secret) >= 4) {
-                $s = str_replace($secret, '***', $s);
-            }
-        }
-        $s = preg_replace('/\d{6,}:[A-Za-z0-9_-]{30,}/', '***', $s);
-        return mb_substr($s, 0, 400);
+        return mb_substr(Log::scrubSecrets($s), 0, 400);
     }
 
     public static function bytes(float $b): string

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   name           VARCHAR(100) NOT NULL,
   role           VARCHAR(16)  NOT NULL DEFAULT 'manager',      -- admin | manager
   password_hash  VARCHAR(255) NOT NULL,
+  session_epoch  INT NOT NULL DEFAULT 0,                       -- +1 при смене/сбросе пароля: старые входы перестают действовать
   telegram_id    BIGINT NULL UNIQUE,
   is_on_duty     TINYINT(1) NOT NULL DEFAULT 0,
   active         TINYINT(1) NOT NULL DEFAULT 1,
@@ -116,7 +117,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   deal_id      INT UNSIGNED NULL,
   user_id      INT UNSIGNED NULL,
-  kind         VARCHAR(16) NOT NULL DEFAULT 'manual',          -- manual | callback | delete_request | question
+  kind         VARCHAR(16) NOT NULL DEFAULT 'manual',          -- manual | callback | delete_request | question | duplicate
   title        VARCHAR(255) NOT NULL,
   due_at       DATETIME NOT NULL,
   done_at      DATETIME NULL,

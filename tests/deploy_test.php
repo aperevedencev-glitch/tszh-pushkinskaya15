@@ -100,6 +100,12 @@ try {
 } catch (RuntimeException $e) {
     ok((int)$db->value('SELECT COUNT(*) FROM users') === 1, 'повторная установка отклонена, второго руководителя нет');
 }
+$att = [];
+for ($i = 0; $i < 6; $i++) {
+    $att[] = Installer::attempt('203.0.113.7');
+}
+ok($att === [true, true, true, true, true, false] && Installer::attempt('203.0.113.8'), 'мастер: 5 попыток за 15 минут с одного адреса, другие адреса не страдают');
+@unlink(dirname($cfg['install_lock']) . '/install_attempts.json');
 unlink($cfg['install_lock']);
 ok(Installer::locked(), 'даже без файла-замка мастер закрыт, если в базе есть сотрудники');
 ok((int)$db->value("SELECT COUNT(*) FROM audit_log WHERE action = 'install'") === 1, 'установка записана в audit_log');

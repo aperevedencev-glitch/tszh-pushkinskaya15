@@ -102,7 +102,11 @@ final class LeadEndpoint
             'ok'       => true,
             'number'   => $r['number'],
             'existing' => !$r['created'],
-            'telegram' => Deeplink::botUrl(Deeplink::forDeal($r['number'])),
+            // ссылка, привязывающая Telegram к заявке, — только новому человеку. Если телефон уже был в базе,
+            // форму мог заполнить кто угодно, знающий номер: даём обычную ссылку на бота без привязки.
+            'telegram' => !empty($r['contact_created'])
+                ? Deeplink::botUrl(Deeplink::forDeal($r['number']))
+                : Deeplink::botUrl(Deeplink::campaignTag($p('utm_campaign') ?: 'form')),
         ]);
 
         // Ответ уже у пользователя — теперь пробуем отправить уведомление менеджеру.
