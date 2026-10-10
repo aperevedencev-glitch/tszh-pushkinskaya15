@@ -370,6 +370,7 @@ for scn in range(1, 9):
     ok = all(r[2] == "ok" for r in rs)
     print(f"Сценарий {scn}: {'OK' if ok else 'FAIL'} ({sum(r[2] == 'ok' for r in rs)}/{len(rs)})")
 print(f"Итого ошибок: {len(fails)}")
-with open(os.environ.get("REPORT_JSON", "/dev/null"), "w") as f:
-    json.dump(results, f, ensure_ascii=False)
+if os.environ.get("REPORT_JSON"):   # без папки для скриншотов run_all.sh передаёт пустую строку
+    with open(os.environ["REPORT_JSON"], "w") as f:
+        json.dump(results, f, ensure_ascii=False)
 sys.exit(1 if fails else 0)
