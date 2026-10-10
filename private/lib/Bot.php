@@ -162,6 +162,19 @@ final class Bot
             $this->say('Эта заявка закрыта. Чтобы задать новый вопрос, нажмите «Оставить заявку».', $this->menu());
             return;
         }
+        // ссылка привязывает Telegram, только пока заявка «нетронута»: одно сообщение, одно согласие, не старше 7 дней.
+        // Иначе её мог получить человек, заранее оставивший заявку с чужим номером, и дождаться обращения жильца.
+        if (!$contact['telegram_id']) {
+            $inbound = (int)$db->value("SELECT COUNT(*) FROM messages m JOIN deals d ON d.id = m.deal_id WHERE d.contact_id = ? AND m.direction = 'in' AND m.author = 'client'", [$contact['id']]);
+            $consents = (int)$db->value('SELECT COUNT(*) FROM consents WHERE contact_id = ?', [$contact['id']]);
+            $fresh = strtotime((string)$deal['created_at']) >= App::now()->modify('-7 days')->getTimestamp();
+            if ($inbound > 1 || $consents > 1 || !$fresh) {
+                Log::event('deeplink_refused', ['deal' => $number, 'inbound' => $inbound, 'consents' => $consents, 'fresh' => $fresh]);
+                $this->s->save();
+                $this->say("Ссылка на заявку {$number} больше не действует. Если это ваша заявка — нажмите «Оставить заявку» и напишите сюда, менеджер свяжет обращения.", $this->menu());
+                return;
+            }
+        }
         if ($contact['telegram_id'] && (int)$contact['telegram_id'] !== $this->uid) {
             $this->s->save();
             $this->say("Заявка {$number} уже связана с другим аккаунтом Telegram. Если это ваша заявка — напишите сюда новое сообщение через «Оставить заявку», менеджер разберётся.", $this->menu());

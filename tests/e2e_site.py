@@ -64,8 +64,11 @@ with sync_playwright() as p:
             # заполнение
             time.sleep(2.1)  # ловушка «слишком быстро» — 2 секунды
             page.fill("#f-name", "Тест Сквозной")
-            page.fill("#f-phone", "+7 900 111-22-33")
+            # новый номер при каждом запуске: ссылка с привязкой к заявке выдаётся только новому контакту
+            page.fill("#f-phone", "+7 900 " + time.strftime("%H%M%S")[:3] + "-" + time.strftime("%H%M%S")[3:5] + "-" + time.strftime("%S"))
             page.fill("#f-comment", "Проверка формы из автотеста")
+            page.locator("#f-consent").scroll_into_view_if_needed()
+            time.sleep(0.8)   # дождаться анимации появления блока, иначе флажок «нестабилен»
             page.check("#f-consent")
             with page.expect_response(lambda r: r.url.endswith("/api/lead.php")) as resp:
                 page.click("#f-submit")

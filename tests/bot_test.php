@@ -264,6 +264,18 @@ ok((int)Contacts::find($res['contact_id'])['telegram_id'] === 71001, 'Telegram �
 send(user(71002, 'Чужой', 'evil'), '/start ' . Deeplink::forDeal($res['number']));
 ok(str_contains(lastText(), 'уже связана с другим аккаунтом') && (int)Contacts::find($res['contact_id'])['telegram_id'] === 71001, 'повторно та же ссылка у другого человека не срабатывает');
 
+// ссылку получили заранее с чужим номером и открыли ПОСЛЕ обращения жильца — не привязывается
+$early = Leads::capture(['channel' => 'site', 'name' => 'Злоумышленник', 'phone' => '+79161115500', 'text' => 'занимаю', 'consent' => ['ip' => '6.6.6.6']]);
+$link = Deeplink::forDeal($early['number']);   // ссылку не открывает, ждёт
+$late = Leads::capture(['channel' => 'site', 'name' => 'Мария', 'phone' => '+79161115500', 'text' => 'кв 42, прошу справку о долге', 'consent' => ['ip' => '10.0.0.42']]);
+send(user(71010, 'Злоумышленник', 'evil3'), '/start ' . $link);
+ok(Contacts::find($early['contact_id'])['telegram_id'] === null && str_contains(lastText(), 'больше не действует'), 'ссылка, открытая после обращения жильца с тем же номером, не привязывает Telegram');
+// своя свежая ссылка, открытая сразу, — работает (проверено выше); устаревшая (8 дней) — нет
+$old = Leads::capture(['channel' => 'site', 'name' => 'Нина', 'phone' => '+79161115600', 'text' => 'x', 'consent' => ['ip' => '10.0.0.43']]);
+$db->update('deals', ['created_at' => Db::ts(App::now()->modify('-8 days'))], 'id = ?', [$old['deal_id']]);
+send(user(71011, 'Нина', null), '/start ' . Deeplink::forDeal($old['number']));
+ok(Contacts::find($old['contact_id'])['telegram_id'] === null, 'ссылка старше 7 дней не привязывает Telegram');
+
 // бот: телефон набран руками — к чужому контакту не привязываемся
 $site3 = Leads::capture(['channel' => 'site', 'name' => 'Пётр', 'phone' => '+79161113300', 'text' => 'Сайт', 'consent' => ['ip' => '10.0.0.8']]);
 $evil = user(71003, 'Злоумышленник', 'evil2');
